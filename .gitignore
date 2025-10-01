@@ -1,0 +1,80 @@
+# =========================
+# Unity .gitignore
+# =========================
+
+# OS-specific junk
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Visual Studio / JetBrains Rider
+.vs/
+.vscode/
+.idea/
+*.user
+*.userprefs
+*.csproj
+*.pidb
+*.suo
+*.sln
+*.sln.docstates
+*.tmp
+*.booproj
+*.svd
+
+# Build results
+[Bb]uild/
+[Bb]uilds/
+[Bb]in/
+[Oo]bj/
+[Ll]ogs/
+[Ll]ibrary/
+[Tt]emp/
+MemoryCaptures/
+SysCache/
+
+# Unity auto-generated
+*.apk
+*.aab
+*.unitypackage
+*.tmp
+*.pidb
+*.mdb
+*.pdb
+
+# Crash / Debug logs
+*.stacktrace
+*.log
+
+# Addressables
+/[Aa]ssets/[Aa]ddressable[Aa]ssets[Dd]ata/*/*.bin*
+/[Aa]ssets/[Aa]ddressable[Aa]ssets[Dd]ata/*/*.json
+
+# Cache
+/[Aa]ssets/AssetStoreTools*
+/[Aa]ssets/StreamingAssets/aa/*
+/[Aa]ssets/StreamingAssets/AssetBundles/*
+
+# Android / iOS
+.gradle/
+gradle/
+*.apk
+*.aab
+*.obb
+*.keystore
+*.jks
+*.ipa
+*.xcuserdata/
+*.xcworkspace/
+*.xcodeproj/project.xcworkspace/
+
+# VS Code
+.history/
+.vscode/*
+
+# Rider
+.idea/
+*.iml
+
+# Local configs
+UserSettings/
