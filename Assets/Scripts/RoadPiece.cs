@@ -1,5 +1,4 @@
 using UnityEngine;
-using System.Collections.Generic;
 
 public enum RoadType
 {
@@ -21,12 +20,11 @@ public class RoadPiece : MonoBehaviour
     [Tooltip("Rotation step for snapping (e.g., 90 for corners).")]
     public float rotationStep = 90f;
 
-    [Tooltip("Assign SnapPoint transforms (ends/connection points). If left empty the script will try to auto-find children named 'SnapPoint'")]
-    public Transform[] snapPoints;
+    [Tooltip("SnapPoint components (ends/connection points). If left empty the script will auto-find children with SnapPoint component.")]
+    public SnapPoint[] snapPoints = new SnapPoint[0];
 
     void Reset()
     {
-        // Try to auto-find snap points in children when the component is added in the editor
         AutoCollectSnapPoints();
     }
 
@@ -38,49 +36,39 @@ public class RoadPiece : MonoBehaviour
 
     void AutoCollectSnapPoints()
     {
-        var list = new List<Transform>();
-        foreach (Transform t in GetComponentsInChildren<Transform>(true))
+        var points = GetComponentsInChildren<SnapPoint>(true);
+        snapPoints = points;
+        foreach (var sp in snapPoints)
         {
-            if (t == this.transform) continue;
-            // match children named SnapPoint (case-insensitive) or with a "SnapPoint" tag/name pattern
-            if (t.name.ToLower().Contains("snappoint"))
-                list.Add(t);
+            if (sp != null) sp.parentRoad = this;
         }
-
-        if (list.Count > 0)
-            snapPoints = list.ToArray();
     }
 
-    /// <summary>
-    /// Called when road is placed permanently.
-    /// Extend this for registering in a road network, adding colliders, updating navmesh, etc.
-    /// </summary>
     public void OnPlaced()
     {
         Debug.Log($"Placed {roadType} with {laneCount} lanes at {transform.position}");
     }
 
     /// <summary>
-    /// Return the closest snap point of this road to worldPos within maxDist. Returns null if none.
+    /// Returns the closest snap point of this road to worldPos within maxDist. Null if none.
     /// </summary>
-    public Transform GetClosestSnapPoint(Vector3 worldPos, float maxDist)
+    public SnapPoint GetClosestSnapPoint(Vector3 worldPos, float maxDist)
     {
         if (snapPoints == null || snapPoints.Length == 0) return null;
 
-        Transform best = null;
+        SnapPoint best = null;
         float bestDist = maxDist;
 
         foreach (var sp in snapPoints)
         {
             if (sp == null) continue;
-            float d = Vector3.Distance(worldPos, sp.position);
+            float d = Vector3.Distance(worldPos, sp.transform.position);
             if (d < bestDist)
             {
                 bestDist = d;
                 best = sp;
             }
         }
-
         return best;
     }
 }

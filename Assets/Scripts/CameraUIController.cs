@@ -14,6 +14,7 @@ public class CameraUIController : MonoBehaviour, IDragHandler, IBeginDragHandler
     public float dragSpeed = 0.5f;
     public float minZoom = 30f;
     public float maxZoom = 100f;
+    public float pinchZoomSpeed = 0.1f; // sensitivity for pinch zoom
 
     private bool dragging = false;
     private Vector2 lastPos;
@@ -41,6 +42,7 @@ public class CameraUIController : MonoBehaviour, IDragHandler, IBeginDragHandler
 
     void LateUpdate()
     {
+        HandlePinchZoom();  // NEW: check pinch every frame
         ClampPosition();
     }
 
@@ -72,6 +74,35 @@ public class CameraUIController : MonoBehaviour, IDragHandler, IBeginDragHandler
     public void SetZoom(float value)
     {
         cam.orthographicSize = Mathf.Clamp(value, minZoom, maxZoom);
+    }
+
+    // --- Handle pinch zoom (mobile only) ---
+    void HandlePinchZoom()
+    {
+        if (Input.touchCount == 2)
+        {
+            Touch touch0 = Input.GetTouch(0);
+            Touch touch1 = Input.GetTouch(1);
+
+            // Positions in current frame
+            Vector2 touch0Prev = touch0.position - touch0.deltaPosition;
+            Vector2 touch1Prev = touch1.position - touch1.deltaPosition;
+
+            float prevMagnitude = (touch0Prev - touch1Prev).magnitude;
+            float currentMagnitude = (touch0.position - touch1.position).magnitude;
+
+            float difference = currentMagnitude - prevMagnitude;
+
+            // Adjust zoom
+            float newZoom = cam.orthographicSize - difference * pinchZoomSpeed;
+            newZoom = Mathf.Clamp(newZoom, minZoom, maxZoom);
+
+            cam.orthographicSize = newZoom;
+
+            // Sync slider if assigned
+            if (zoomSlider != null)
+                zoomSlider.value = newZoom;
+        }
     }
 
     // --- Clamp position inside ground ---
