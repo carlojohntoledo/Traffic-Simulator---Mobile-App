@@ -1,72 +1,63 @@
 using UnityEngine;
 using System.Collections;
+using UnityEngine.UI;
 
 public class ShowUIPanel : MonoBehaviour
 {
     [Header("References")]
-    public RectTransform panel; // assign your hidden panel
+    public RectTransform panel; // assign the panel2 (the one to expand/collapse)
+    public RectTransform parentPanel; // assign the parent container (with vertical layout)
 
     [Header("Settings")]
-    public float animationDuration = 0.5f; // seconds to animate
-    [Range(0f, 1f)] public float minAnchorY = 0f;   // collapsed position
-    [Range(0f, 1f)] public float maxAnchorY = 0.5f; // expanded position
+    public float animationDuration = 0.5f; // time to expand/collapse
+    [Range(0f, 1f)] public float targetHeightPercent = 0.4f; // 40% of parent
 
+    private LayoutElement layoutElement;
     private Coroutine currentAnim;
     private bool isVisible = false; // track state
 
-    // --- Toggle panel ---
-    public void toggleMyPanel()
+    void Awake()
     {
-        if (panel == null) return;
-        if (currentAnim != null) StopCoroutine(currentAnim);
-
-        if (!isVisible) // show
+        if (panel != null)
         {
-            panel.gameObject.SetActive(true);
+            // Ensure LayoutElement exists
+            layoutElement = panel.GetComponent<LayoutElement>();
+            if (layoutElement == null)
+                layoutElement = panel.gameObject.AddComponent<LayoutElement>();
 
-            // Reset collapsed
-            panel.anchorMin = new Vector2(panel.anchorMin.x, minAnchorY);
-            panel.anchorMax = new Vector2(panel.anchorMax.x, minAnchorY);
-
-            currentAnim = StartCoroutine(AnimatePanel(minAnchorY, maxAnchorY, false));
-            isVisible = true;
-        }
-        else // hide
-        {
-            currentAnim = StartCoroutine(AnimatePanel(panel.anchorMax.y, minAnchorY, true));
-            isVisible = false;
+            // Start collapsed
+            layoutElement.preferredHeight = 0;
         }
     }
 
-    // --- Coroutine animates between two Y values ---
-    IEnumerator AnimatePanel(float startY, float targetY, bool disableAtEnd)
+    // --- Toggle function ---
+    public void toggleMyPanel()
+    {
+        if (panel == null || parentPanel == null) return;
+
+        if (currentAnim != null) StopCoroutine(currentAnim);
+
+        float parentHeight = parentPanel.rect.height;
+        float targetHeight = isVisible ? 0f : parentHeight * targetHeightPercent;
+
+        currentAnim = StartCoroutine(AnimateHeight(layoutElement.preferredHeight, targetHeight));
+        isVisible = !isVisible;
+    }
+
+    // --- Coroutine to animate height ---
+    IEnumerator AnimateHeight(float start, float target)
     {
         float elapsed = 0f;
-
-        Vector2 startMin = new Vector2(panel.anchorMin.x, minAnchorY);
-        Vector2 startMax = new Vector2(panel.anchorMax.x, startY);
-        Vector2 targetMin = new Vector2(panel.anchorMin.x, minAnchorY);
-        Vector2 targetMax = new Vector2(panel.anchorMax.x, targetY);
 
         while (elapsed < animationDuration)
         {
             elapsed += Time.deltaTime;
             float t = Mathf.Clamp01(elapsed / animationDuration);
-
-            panel.anchorMin = Vector2.Lerp(startMin, targetMin, t);
-            panel.anchorMax = Vector2.Lerp(startMax, targetMax, t);
-
+            layoutElement.preferredHeight = Mathf.Lerp(start, target, t);
             yield return null;
         }
 
-        // Snap to final state
-        panel.anchorMin = targetMin;
-        panel.anchorMax = targetMax;
-
-        // Disable if hiding
-        if (disableAtEnd)
-            panel.gameObject.SetActive(false);
-
+        layoutElement.preferredHeight = target;
         currentAnim = null;
     }
 }
