@@ -33,7 +33,6 @@ public class ItemData : ScriptableObject
 {
     [Header("General Info")]
     public ItemType type;
-
     public string itemName;
     [TextArea] public string description;
 
@@ -44,30 +43,42 @@ public class ItemData : ScriptableObject
     public GameObject itemPrefab;
 
     // --- Roads ---
-    public float roadLength;
+    [Header("Road Settings")]
+    [Tooltip("Desired road length in meters (each prefab piece = 0.5m).")]
+    public float roadLength = 1f;
 
     // --- Spawner ---
+    [Header("Spawner Settings")]
     public SpawnerType spawnerType;
-    public int maxSpawnCount;
-    public float spawnInterval;
+    [Tooltip("Maximum number of objects this spawner can create.")]
+    public int maxSpawnCount = 10;
+    [Tooltip("Time between spawns (seconds).")]
+    public float spawnInterval = 1f;
 
     // --- Pedestrians ---
-    public float pedestrianDefaultSpeed;
+    [Header("Pedestrian Settings")]
+    public float pedestrianDefaultSpeed = 1.5f;
 
     // --- Rules ---
+    [Header("Traffic Rule Settings")]
     public TrafficRuleType trafficRuleType;
 
     // Traffic Sign
-    public int signPriority;
+    [Tooltip("Priority for signs (lower = higher priority).")]
+    public int signPriority = 1;
 
     // Traffic Light
+    [Tooltip("Time light stays red.")]
     public float stopTime = 5f;
+    [Tooltip("Time light stays yellow.")]
     public float slowdownTime = 2f;
+    [Tooltip("Time light stays green.")]
     public float goTime = 5f;
     public bool hazardMode = false;
     public bool flashingMode = false;
 
     // --- Vehicles ---
+    [Header("Vehicle Settings")]
     public VehicleType vehicleType;
-    public float vehicleDefaultSpeed;
+    public float vehicleDefaultSpeed = 10f;
 }

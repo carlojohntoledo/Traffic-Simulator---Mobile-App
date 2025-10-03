@@ -74,17 +74,29 @@ public class ItemContentManager : MonoBehaviour
 
             GameObject clone = Instantiate(itemPanelPrefab, contentParent);
 
-            // Try to find components on prefab
-            TMP_Text tmpText = clone.GetComponentInChildren<TMP_Text>();
-            if (tmpText != null) tmpText.text = item.itemName;
+            // --- Find Item Name Text (TMP) ---
+            TMP_Text[] texts = clone.GetComponentsInChildren<TMP_Text>(true);
+            foreach (var t in texts)
+            {
+                if (t.name == "Item Name Text")
+                {
+                    t.text = item.itemName;
+                    break;
+                }
+            }
 
-            Text uiText = clone.GetComponentInChildren<Text>();
-            if (uiText != null) uiText.text = item.itemName;
+            // --- Find Item Image (UI Image) ---
+            Image[] images = clone.GetComponentsInChildren<Image>(true);
+            foreach (var img in images)
+            {
+                if (img.name == "Item Image")
+                {
+                    img.sprite = item.previewImage;
+                    break;
+                }
+            }
 
-            Image img = clone.GetComponentInChildren<Image>();
-            if (img != null) img.sprite = item.previewImage;
-
-            // Add button listener to open confirm panel
+            // --- Add button listener ---
             Button btn = clone.GetComponentInChildren<Button>();
             if (btn != null)
             {

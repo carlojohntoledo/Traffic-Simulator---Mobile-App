@@ -25,9 +25,15 @@ public class FlexibleGrid : MonoBehaviour
 
     void AdjustCellSize()
     {
-        float width = ((RectTransform)transform).rect.width;
+        RectTransform rect = (RectTransform)transform;
+
+        // Available width is total width minus padding and spacing
         float totalSpacing = spacing.x * (columns - 1);
-        float cellWidth = (width - totalSpacing) / columns;
+        float totalPadding = grid.padding.left + grid.padding.right;
+        float availableWidth = rect.rect.width - totalSpacing - totalPadding;
+
+        // Final per-cell width
+        float cellWidth = availableWidth / columns;
 
         grid.cellSize = new Vector2(cellWidth, fixedHeight);
     }

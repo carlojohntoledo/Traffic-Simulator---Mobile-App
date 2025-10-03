@@ -10,20 +10,20 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d9e8466f90a49b04da53cc53d07e886f, type: 3}
-  m_Name: Straight Road
+  m_Name: Four Way Straight Road
   m_EditorClassIdentifier: 
   type: 0
-  itemName: Straight Road
+  itemName: Four Way Straight Road
   description: 
-  previewImage: {fileID: 0}
-  itemPrefab: {fileID: 182628, guid: b902c7d22d14fa843846ba35e963190b, type: 3}
+  previewImage: {fileID: 21300008, guid: 1eaee135ce037439d925cee5e41ce026, type: 3}
+  itemPrefab: {fileID: 0}
   roadLength: 0
   spawnerType: 0
   maxSpawnCount: 0
   spawnInterval: 0
   pedestrianDefaultSpeed: 0
   trafficRuleType: 0
-  signPriority: 1
+  signPriority: 0
   stopTime: 5
   slowdownTime: 2
   goTime: 5

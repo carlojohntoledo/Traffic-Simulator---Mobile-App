@@ -5,16 +5,19 @@ using UnityEngine.UI;
 public class CameraUIController : MonoBehaviour, IDragHandler, IBeginDragHandler, IEndDragHandler
 {
     [Header("References")]
-    public Camera cam;              // assign Main Camera
-    public RectTransform dragPanel; // assign panel for drag
-    public Slider zoomSlider;       // assign zoom slider (optional)
-    public Transform ground;        // assign Ground object (plane/terrain)
+    public Camera cam;
+    public RectTransform dragPanel;
+    public Slider zoomSlider;
+    public Transform ground;
 
     [Header("Settings")]
     public float dragSpeed = 0.5f;
     public float minZoom = 30f;
     public float maxZoom = 100f;
-    public float pinchZoomSpeed = 0.1f; // sensitivity for pinch zoom
+    public float pinchZoomSpeed = 0.1f;
+
+    [Header("Layers")]
+    public LayerMask clickableLayer; // Assign "Road" layer here
 
     private bool dragging = false;
     private Vector2 lastPos;
@@ -22,11 +25,14 @@ public class CameraUIController : MonoBehaviour, IDragHandler, IBeginDragHandler
     private Vector2 minBounds;
     private Vector2 maxBounds;
 
-    void Start()
+    void Awake()
     {
         if (cam == null) cam = Camera.main;
+    }
 
-        // Setup slider
+    void Start()
+    {
+        // Setup zoom slider
         if (zoomSlider != null)
         {
             zoomSlider.minValue = minZoom;
@@ -35,25 +41,28 @@ public class CameraUIController : MonoBehaviour, IDragHandler, IBeginDragHandler
             zoomSlider.onValueChanged.AddListener(SetZoom);
         }
 
-        // Calculate bounds based on ground
         if (ground != null)
             CalculateBounds();
     }
 
+    void Update()
+    {
+        HandlePinchZoom();
+        HandleClick();
+    }
+
     void LateUpdate()
     {
-        HandlePinchZoom();  // NEW: check pinch every frame
         ClampPosition();
     }
 
-    // --- Panel drag begin ---
+    // --- Dragging ---
     public void OnBeginDrag(PointerEventData eventData)
     {
         dragging = true;
         lastPos = eventData.position;
     }
 
-    // --- Panel dragging ---
     public void OnDrag(PointerEventData eventData)
     {
         if (!dragging) return;
@@ -64,19 +73,17 @@ public class CameraUIController : MonoBehaviour, IDragHandler, IBeginDragHandler
         lastPos = eventData.position;
     }
 
-    // --- Panel drag end ---
     public void OnEndDrag(PointerEventData eventData)
     {
         dragging = false;
     }
 
-    // --- Zoom from slider ---
+    // --- Zoom ---
     public void SetZoom(float value)
     {
         cam.orthographicSize = Mathf.Clamp(value, minZoom, maxZoom);
     }
 
-    // --- Handle pinch zoom (mobile only) ---
     void HandlePinchZoom()
     {
         if (Input.touchCount == 2)
@@ -84,28 +91,52 @@ public class CameraUIController : MonoBehaviour, IDragHandler, IBeginDragHandler
             Touch touch0 = Input.GetTouch(0);
             Touch touch1 = Input.GetTouch(1);
 
-            // Positions in current frame
             Vector2 touch0Prev = touch0.position - touch0.deltaPosition;
             Vector2 touch1Prev = touch1.position - touch1.deltaPosition;
 
             float prevMagnitude = (touch0Prev - touch1Prev).magnitude;
             float currentMagnitude = (touch0.position - touch1.position).magnitude;
-
             float difference = currentMagnitude - prevMagnitude;
 
-            // Adjust zoom
             float newZoom = cam.orthographicSize - difference * pinchZoomSpeed;
-            newZoom = Mathf.Clamp(newZoom, minZoom, maxZoom);
+            cam.orthographicSize = Mathf.Clamp(newZoom, minZoom, maxZoom);
 
-            cam.orthographicSize = newZoom;
-
-            // Sync slider if assigned
             if (zoomSlider != null)
-                zoomSlider.value = newZoom;
+                zoomSlider.value = cam.orthographicSize;
         }
     }
 
-    // --- Clamp position inside ground ---
+    // --- Click detection ---
+    private void HandleClick()
+    {
+        if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
+            return; // don't click through UI
+
+        if (Input.GetMouseButtonDown(0))
+        {
+            Ray ray = cam.ScreenPointToRay(Input.mousePosition);
+
+            if (Physics.Raycast(ray, out RaycastHit hit, Mathf.Infinity, clickableLayer))
+            {
+                Debug.Log($"[CameraUIController] Raycast hit: {hit.collider.gameObject.name}");
+
+                SelectableItem item = hit.collider.GetComponent<SelectableItem>();
+                if (item != null)
+                {
+                    Debug.Log("[CameraUIController] Found SelectableItem, forwarding click.");
+                    item.OnClicked();
+                }
+                else
+                {
+                    Debug.LogWarning("[CameraUIController] No SelectableItem on hit object.");
+                }
+            }
+        }
+
+    }
+
+
+    // --- Bounds ---
     void ClampPosition()
     {
         if (ground == null) return;
@@ -116,7 +147,6 @@ public class CameraUIController : MonoBehaviour, IDragHandler, IBeginDragHandler
         cam.transform.position = pos;
     }
 
-    // --- Calculate ground size from renderer/terrain ---
     void CalculateBounds()
     {
         Renderer rend = ground.GetComponent<Renderer>();
