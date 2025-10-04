@@ -6,14 +6,18 @@ public class BuildItem : MonoBehaviour
     [Header("Item Data Reference")]
     public ItemData data;
 
-    [Header("Roads")]
+    [Header("Immutable Snapshot")]
+    public string staticName;
+    public Sprite staticImage;
+
+    [Header("Road Settings")]
     public int length = 1;
     public List<GameObject> roadSegments = new List<GameObject>();
 
-    [Header("Vehicles")]
+    [Header("Vehicle Settings")]
     public float vehicleSpeed;
 
-    [Header("Pedestrians")]
+    [Header("Pedestrian Settings")]
     public float pedestrianSpeed;
 
     [Header("Traffic Light Settings")]
@@ -33,5 +37,7 @@ public class BuildItem : MonoBehaviour
     public void Initialize(ItemData itemData)
     {
         data = itemData;
+        staticName = data.itemName;
+        staticImage = data.previewImage;
     }
 }

@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
+using System.Collections.Generic;
 
 public class CameraUIController : MonoBehaviour, IDragHandler, IBeginDragHandler, IEndDragHandler
 {
@@ -19,11 +20,19 @@ public class CameraUIController : MonoBehaviour, IDragHandler, IBeginDragHandler
     [Header("Layers")]
     public LayerMask clickableLayer; // Assign "Road" layer here
 
+    [Header("UI Blocking Settings")]
+    public GraphicRaycaster uiRaycaster; // assign Canvas GraphicRaycaster
+    public EventSystem eventSystem;      // assign EventSystem
+    public List<RectTransform> uiClickThrough = new List<RectTransform>(); // UI panels that should NOT block clicks
+
     private bool dragging = false;
     private Vector2 lastPos;
 
     private Vector2 minBounds;
     private Vector2 maxBounds;
+
+    private PointerEventData pointerData;
+    private List<RaycastResult> raycastResults = new List<RaycastResult>();
 
     void Awake()
     {
@@ -109,32 +118,51 @@ public class CameraUIController : MonoBehaviour, IDragHandler, IBeginDragHandler
     // --- Click detection ---
     private void HandleClick()
     {
-        if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
-            return; // don't click through UI
-
         if (Input.GetMouseButtonDown(0))
         {
-            Ray ray = cam.ScreenPointToRay(Input.mousePosition);
+            if (IsPointerOverBlockingUI())
+            {
+                Debug.Log("[CameraUIController] Click blocked by UI.");
+                return; // stop processing if blocked UI
+            }
 
+            // Do raycast for world objects
+            Ray ray = cam.ScreenPointToRay(Input.mousePosition);
             if (Physics.Raycast(ray, out RaycastHit hit, Mathf.Infinity, clickableLayer))
             {
                 Debug.Log($"[CameraUIController] Raycast hit: {hit.collider.gameObject.name}");
+            }
+        }
+    }
 
-                SelectableItem item = hit.collider.GetComponent<SelectableItem>();
-                if (item != null)
-                {
-                    Debug.Log("[CameraUIController] Found SelectableItem, forwarding click.");
-                    item.OnClicked();
-                }
-                else
-                {
-                    Debug.LogWarning("[CameraUIController] No SelectableItem on hit object.");
-                }
+    private bool IsPointerOverBlockingUI()
+    {
+        if (eventSystem == null || uiRaycaster == null)
+            return false;
+
+        pointerData = new PointerEventData(eventSystem)
+        {
+            position = Input.mousePosition
+        };
+
+        raycastResults.Clear();
+        uiRaycaster.Raycast(pointerData, raycastResults);
+
+        foreach (var result in raycastResults)
+        {
+            RectTransform rt = result.gameObject.GetComponent<RectTransform>();
+            if (rt != null)
+            {
+                // Allow click-through for exceptions
+                if (uiClickThrough.Contains(rt))
+                    continue;
+
+                return true; // Block click
             }
         }
 
+        return false; // No blocking UI hit
     }
-
 
     // --- Bounds ---
     void ClampPosition()

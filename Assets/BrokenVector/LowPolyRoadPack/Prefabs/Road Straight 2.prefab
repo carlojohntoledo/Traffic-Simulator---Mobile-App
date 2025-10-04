@@ -12,7 +12,8 @@ GameObject:
   - component: {fileID: 3313066}
   - component: {fileID: 2370018}
   - component: {fileID: 34524930730862425}
-  - component: {fileID: 9151691076901489954}
+  - component: {fileID: 4189337196166755532}
+  - component: {fileID: -4879395831224358717}
   m_Layer: 8
   m_Name: Road Straight 2
   m_TagString: Untagged
@@ -106,7 +107,7 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 7.5, y: 4.21742, z: 5.1904025}
   m_Center: {x: -3.75, y: -0.5201333, z: -2.4816835}
---- !u!114 &9151691076901489954
+--- !u!114 &4189337196166755532
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -115,7 +116,23 @@ MonoBehaviour:
   m_GameObject: {fileID: 182628}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: cf02f9a4676efb446839f4d1a8968d19, type: 3}
+  m_Script: {fileID: 11500000, guid: d0053c2c8c0227d49abfd90cd4d457c5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  parentBuild: {fileID: 0}
+  transparentMaterial: {fileID: 10303, guid: 0000000000000000f000000000000000, type: 0}
+--- !u!114 &-4879395831224358717
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 182628}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c22b36ec7087bf648841f8082b0ddeab, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  groundLayer:
+    serializedVersion: 2
+    m_Bits: 64
+  dragHeightOffset: 0.05
