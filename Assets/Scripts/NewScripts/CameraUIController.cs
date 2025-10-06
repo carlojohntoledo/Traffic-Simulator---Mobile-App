@@ -18,16 +18,15 @@ public class CameraUIController : MonoBehaviour, IDragHandler, IBeginDragHandler
     public float pinchZoomSpeed = 0.1f;
 
     [Header("Layers")]
-    public LayerMask clickableLayer; // Assign "Road" layer here
+    public LayerMask clickableLayer; // Assign your interactable layer
 
     [Header("UI Blocking Settings")]
-    public GraphicRaycaster uiRaycaster; // assign Canvas GraphicRaycaster
-    public EventSystem eventSystem;      // assign EventSystem
-    public List<RectTransform> uiClickThrough = new List<RectTransform>(); // UI panels that should NOT block clicks
+    public GraphicRaycaster uiRaycaster;
+    public EventSystem eventSystem;
+    public List<RectTransform> uiClickThrough = new List<RectTransform>();
 
     private bool dragging = false;
     private Vector2 lastPos;
-
     private Vector2 minBounds;
     private Vector2 maxBounds;
 
@@ -41,7 +40,7 @@ public class CameraUIController : MonoBehaviour, IDragHandler, IBeginDragHandler
 
     void Start()
     {
-        // Setup zoom slider
+        // Zoom slider setup
         if (zoomSlider != null)
         {
             zoomSlider.minValue = minZoom;
@@ -65,16 +64,30 @@ public class CameraUIController : MonoBehaviour, IDragHandler, IBeginDragHandler
         ClampPosition();
     }
 
-    // --- Dragging ---
+    // --- Camera Dragging ---
     public void OnBeginDrag(PointerEventData eventData)
     {
+        if (InputBlocker.IsModelDragging)
+        {
+            Debug.Log("[CameraUIController] Skipping camera drag — model is being dragged.");
+            return;
+        }
+
+        if (IsPointerOverBlockingUI())
+        {
+            Debug.Log("[CameraUIController] Drag blocked by UI.");
+            return;
+        }
+
         dragging = true;
+        InputBlocker.IsCameraDragging = true;
         lastPos = eventData.position;
     }
 
     public void OnDrag(PointerEventData eventData)
     {
-        if (!dragging) return;
+        if (!dragging || InputBlocker.IsModelDragging)
+            return;
 
         Vector2 delta = eventData.position - lastPos;
         Vector3 move = new Vector3(-delta.x, 0, -delta.y) * dragSpeed * Time.deltaTime;
@@ -85,6 +98,7 @@ public class CameraUIController : MonoBehaviour, IDragHandler, IBeginDragHandler
     public void OnEndDrag(PointerEventData eventData)
     {
         dragging = false;
+        InputBlocker.IsCameraDragging = false;
     }
 
     // --- Zoom ---
@@ -93,21 +107,21 @@ public class CameraUIController : MonoBehaviour, IDragHandler, IBeginDragHandler
         cam.orthographicSize = Mathf.Clamp(value, minZoom, maxZoom);
     }
 
-    void HandlePinchZoom()
+    private void HandlePinchZoom()
     {
         if (Input.touchCount == 2)
         {
             Touch touch0 = Input.GetTouch(0);
             Touch touch1 = Input.GetTouch(1);
 
-            Vector2 touch0Prev = touch0.position - touch0.deltaPosition;
-            Vector2 touch1Prev = touch1.position - touch1.deltaPosition;
+            Vector2 prevPos0 = touch0.position - touch0.deltaPosition;
+            Vector2 prevPos1 = touch1.position - touch1.deltaPosition;
 
-            float prevMagnitude = (touch0Prev - touch1Prev).magnitude;
-            float currentMagnitude = (touch0.position - touch1.position).magnitude;
-            float difference = currentMagnitude - prevMagnitude;
+            float prevMag = (prevPos0 - prevPos1).magnitude;
+            float currentMag = (touch0.position - touch1.position).magnitude;
+            float diff = currentMag - prevMag;
 
-            float newZoom = cam.orthographicSize - difference * pinchZoomSpeed;
+            float newZoom = cam.orthographicSize - diff * pinchZoomSpeed;
             cam.orthographicSize = Mathf.Clamp(newZoom, minZoom, maxZoom);
 
             if (zoomSlider != null)
@@ -115,18 +129,20 @@ public class CameraUIController : MonoBehaviour, IDragHandler, IBeginDragHandler
         }
     }
 
-    // --- Click detection ---
+    // --- World Click Detection ---
     private void HandleClick()
     {
         if (Input.GetMouseButtonDown(0))
         {
+            if (InputBlocker.IsModelDragging)
+                return;
+
             if (IsPointerOverBlockingUI())
             {
                 Debug.Log("[CameraUIController] Click blocked by UI.");
-                return; // stop processing if blocked UI
+                return;
             }
 
-            // Do raycast for world objects
             Ray ray = cam.ScreenPointToRay(Input.mousePosition);
             if (Physics.Raycast(ray, out RaycastHit hit, Mathf.Infinity, clickableLayer))
             {
@@ -135,6 +151,7 @@ public class CameraUIController : MonoBehaviour, IDragHandler, IBeginDragHandler
         }
     }
 
+    // --- UI Blocking Logic ---
     private bool IsPointerOverBlockingUI()
     {
         if (eventSystem == null || uiRaycaster == null)
@@ -153,19 +170,23 @@ public class CameraUIController : MonoBehaviour, IDragHandler, IBeginDragHandler
             RectTransform rt = result.gameObject.GetComponent<RectTransform>();
             if (rt != null)
             {
-                // Allow click-through for exceptions
+                // Allow certain UI panels (like camera drag panel)
                 if (uiClickThrough.Contains(rt))
+                    continue;
+
+                // Allow if it's the camera panel marked via CameraDragPanel
+                if (CameraDragPanel.IsPointerOverCameraPanel)
                     continue;
 
                 return true; // Block click
             }
         }
 
-        return false; // No blocking UI hit
+        return false;
     }
 
-    // --- Bounds ---
-    void ClampPosition()
+    // --- Camera Bounds ---
+    private void ClampPosition()
     {
         if (ground == null) return;
 
@@ -175,7 +196,7 @@ public class CameraUIController : MonoBehaviour, IDragHandler, IBeginDragHandler
         cam.transform.position = pos;
     }
 
-    void CalculateBounds()
+    private void CalculateBounds()
     {
         Renderer rend = ground.GetComponent<Renderer>();
         if (rend != null)
