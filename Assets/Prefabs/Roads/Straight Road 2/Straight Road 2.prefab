@@ -15,6 +15,7 @@ GameObject:
   - component: {fileID: 289530558801260841}
   - component: {fileID: 5261768434277871625}
   - component: {fileID: 8011490228156142175}
+  - component: {fileID: 418212485499556944}
   m_Layer: 8
   m_Name: Straight Road 2
   m_TagString: Untagged
@@ -164,3 +165,31 @@ MonoBehaviour:
   destroyCombinedChildren: 0
   folderPath: Prefabs/CombinedMeshes
   meshFiltersToSkip: []
+--- !u!114 &418212485499556944
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1627232098360109726}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7fc8f8387ddab914c9c76f19deca7c22, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  data: {fileID: 0}
+  staticName: 
+  staticImage: {fileID: 0}
+  length: 1
+  roadSegmentPrefab: {fileID: 0}
+  roadSegments: []
+  vehicleSpeed: 0
+  pedestrianSpeed: 0
+  stopTime: 0
+  slowdownTime: 0
+  goTime: 0
+  hazardMode: 0
+  flashingMode: 0
+  signPriority: 0
+  maxSpawnCount: 0
+  spawnInterval: 0

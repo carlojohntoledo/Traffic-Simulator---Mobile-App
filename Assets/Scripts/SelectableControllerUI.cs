@@ -11,13 +11,16 @@ public class SelectableControllerUI : MonoBehaviour
     public Button applyButton;
     public Button revertButton;
     public Button removeButton;
+    public Button editButton;
     public TMP_Text itemNameText;
 
     [Header("External References")]
-    public CameraUIController cameraController; // assign your CameraUIController in inspector
+    public CameraUIController cameraController; // assign in inspector if possible
 
     private SelectableItemController currentTarget;
     private bool moveModeActive = false;
+
+    private ConfirmEditPanel confirmEditPanel;
 
     void Awake()
     {
@@ -27,6 +30,16 @@ public class SelectableControllerUI : MonoBehaviour
         if (applyButton != null) applyButton.onClick.AddListener(OnApplyClicked);
         if (revertButton != null) revertButton.onClick.AddListener(OnRevertClicked);
         if (removeButton != null) removeButton.onClick.AddListener(OnRemoveClicked);
+        if (editButton != null) editButton.onClick.AddListener(OnEditClicked);
+    }
+
+    void Start()
+    {
+        // Dynamically find ConfirmEditPanel (since prefabs can’t be pre-linked)
+        confirmEditPanel = FindObjectOfType<ConfirmEditPanel>(true);
+
+        if (cameraController == null)
+            cameraController = FindObjectOfType<CameraUIController>();
     }
 
     // --- SHOW / HIDE PANEL ---
@@ -50,12 +63,7 @@ public class SelectableControllerUI : MonoBehaviour
         moveModeActive = false;
         UpdateMoveButtonVisual();
 
-        if (cameraController != null && cameraController.dragPanel != null)
-        {
-            var img = cameraController.dragPanel.GetComponent<Image>();
-            if (img != null)
-                img.raycastTarget = true; // restore camera drag
-        }
+        RestoreCameraDragRaycast();
 
         currentTarget = null;
         gameObject.SetActive(false);
@@ -78,16 +86,8 @@ public class SelectableControllerUI : MonoBehaviour
         currentTarget.SetMoveActive(moveModeActive);
         UpdateMoveButtonVisual();
 
-        // Dynamically disable camera drag panel raycast while in move mode
-        if (cameraController != null && cameraController.dragPanel != null)
-        {
-            var img = cameraController.dragPanel.GetComponent<Image>();
-            if (img != null)
-            {
-                img.raycastTarget = !moveModeActive;
-                Debug.Log($"[SelectableControllerUI] Camera drag panel raycastTarget={img.raycastTarget}");
-            }
-        }
+        // Manage drag panel raycast dynamically
+        SetCameraDragRaycast(!moveModeActive);
     }
 
     public void SetMoveButtonActive(bool active)
@@ -100,13 +100,7 @@ public class SelectableControllerUI : MonoBehaviour
     {
         moveModeActive = false;
         UpdateMoveButtonVisual();
-
-        if (cameraController != null && cameraController.dragPanel != null)
-        {
-            var img = cameraController.dragPanel.GetComponent<Image>();
-            if (img != null)
-                img.raycastTarget = true;
-        }
+        RestoreCameraDragRaycast();
     }
 
     private void UpdateMoveButtonVisual()
@@ -114,9 +108,26 @@ public class SelectableControllerUI : MonoBehaviour
         if (moveButton == null) return;
 
         var colors = moveButton.colors;
-        colors.normalColor = moveModeActive ? new Color(0.5f, 0.9f, 0.5f) : Color.white;
+        colors.normalColor = moveModeActive ? new Color(0.6f, 1f, 0.6f) : Color.white;
+        colors.selectedColor = moveModeActive ? new Color(0.6f, 1f, 0.6f) : Color.white;
         moveButton.colors = colors;
     }
+
+    // --- CAMERA RAYCAST MANAGEMENT ---
+    private void SetCameraDragRaycast(bool enabled)
+    {
+        if (cameraController == null || cameraController.dragPanel == null)
+            return;
+
+        var img = cameraController.dragPanel.GetComponent<Image>();
+        if (img != null)
+        {
+            img.raycastTarget = enabled;
+            Debug.Log($"[SelectableControllerUI] Camera drag panel raycastTarget={enabled}");
+        }
+    }
+
+    private void RestoreCameraDragRaycast() => SetCameraDragRaycast(true);
 
     // --- ROTATION ---
     private void RotateCurrent(float degrees)
@@ -133,6 +144,7 @@ public class SelectableControllerUI : MonoBehaviour
     private void OnApplyClicked()
     {
         if (currentTarget == null) return;
+
         currentTarget.Apply();
         Hide();
     }
@@ -140,13 +152,46 @@ public class SelectableControllerUI : MonoBehaviour
     private void OnRevertClicked()
     {
         if (currentTarget == null) return;
+
         currentTarget.Revert();
     }
 
     private void OnRemoveClicked()
     {
         if (currentTarget == null) return;
+
         currentTarget.Remove();
         Hide();
+    }
+
+    // --- EDIT BUTTON ---
+    private void OnEditClicked()
+    {
+        if (currentTarget == null)
+        {
+            Debug.LogWarning("[SelectableControllerUI] Edit button clicked but no target selected!");
+            return;
+        }
+
+        if (confirmEditPanel == null)
+        {
+            confirmEditPanel = FindObjectOfType<ConfirmEditPanel>(true);
+            if (confirmEditPanel == null)
+            {
+                Debug.LogError("[SelectableControllerUI] No ConfirmEditPanel found in scene!");
+                return;
+            }
+        }
+
+        var buildItem = currentTarget.GetComponent<BuildItem>();
+        if (buildItem != null && buildItem.data != null)
+        {
+            confirmEditPanel.Open(buildItem.data);
+            Debug.Log($"[SelectableControllerUI] Opened ConfirmEditPanel for {buildItem.data.itemName}");
+        }
+        else
+        {
+            Debug.LogWarning("[SelectableControllerUI] Current target has no BuildItem or data.");
+        }
     }
 }

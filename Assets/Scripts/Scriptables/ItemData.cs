@@ -57,17 +57,14 @@ public class ItemData : ScriptableObject
 
     // --- Pedestrians ---
     [Header("Pedestrian Settings")]
+    [Tooltip("Default walking speed for spawned pedestrians (m/s).")]
     public float pedestrianDefaultSpeed = 1.5f;
 
     // --- Rules ---
     [Header("Traffic Rule Settings")]
     public TrafficRuleType trafficRuleType;
-
-    // Traffic Sign
     [Tooltip("Priority for signs (lower = higher priority).")]
     public int signPriority = 1;
-
-    // Traffic Light
     [Tooltip("Time light stays red.")]
     public float stopTime = 5f;
     [Tooltip("Time light stays yellow.")]
@@ -80,5 +77,6 @@ public class ItemData : ScriptableObject
     // --- Vehicles ---
     [Header("Vehicle Settings")]
     public VehicleType vehicleType;
+    [Tooltip("Default driving speed for vehicles (m/s).")]
     public float vehicleDefaultSpeed = 10f;
 }

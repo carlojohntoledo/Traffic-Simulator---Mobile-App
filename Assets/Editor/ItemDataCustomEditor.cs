@@ -8,12 +8,12 @@ public class ItemDataEditor : Editor
     {
         serializedObject.Update();
 
-        // General Info
+        // --- General Info ---
         EditorGUILayout.PropertyField(serializedObject.FindProperty("type"));
         EditorGUILayout.PropertyField(serializedObject.FindProperty("itemName"));
         EditorGUILayout.PropertyField(serializedObject.FindProperty("description"));
 
-        // Preview Image
+        // --- Visuals ---
         var previewProp = serializedObject.FindProperty("previewImage");
         EditorGUILayout.PropertyField(previewProp);
 
@@ -24,10 +24,10 @@ public class ItemDataEditor : Editor
                 GUILayout.Label(tex, GUILayout.Height(80), GUILayout.Width(80));
         }
 
-        // Prefab Reference
+        // --- Prefab ---
         EditorGUILayout.PropertyField(serializedObject.FindProperty("itemPrefab"));
 
-        // Switch based on ItemType
+        // --- Type-specific settings ---
         ItemType type = (ItemType)serializedObject.FindProperty("type").enumValueIndex;
 
         switch (type)
@@ -43,6 +43,7 @@ public class ItemDataEditor : Editor
                 break;
 
             case ItemType.Pedestrians:
+                EditorGUILayout.LabelField("Pedestrian Settings", EditorStyles.boldLabel);
                 EditorGUILayout.PropertyField(serializedObject.FindProperty("pedestrianDefaultSpeed"));
                 break;
 
@@ -66,6 +67,7 @@ public class ItemDataEditor : Editor
                 break;
 
             case ItemType.Vehicles:
+                EditorGUILayout.LabelField("Vehicle Settings", EditorStyles.boldLabel);
                 EditorGUILayout.PropertyField(serializedObject.FindProperty("vehicleType"));
                 EditorGUILayout.PropertyField(serializedObject.FindProperty("vehicleDefaultSpeed"));
                 break;
