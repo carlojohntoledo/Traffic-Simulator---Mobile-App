@@ -1,103 +1,93 @@
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
 public class SelectableControllerUI : MonoBehaviour
 {
-    [Header("Buttons")]
+    [Header("UI References")]
     public Button moveButton;
-    public Button removeButton;
     public Button rotateLeftButton;
     public Button rotateRightButton;
-    public Button revertButton;
     public Button applyButton;
+    public Button revertButton;
+    public Button removeButton;
+    public TMP_Text itemNameText;
+
+    [Header("External References")]
+    public CameraUIController cameraController; // assign your CameraUIController in inspector
 
     private SelectableItemController currentTarget;
     private bool moveModeActive = false;
 
-    [Header("Visuals")]
-    public Color normalColor = Color.white;
-    public Color activeColor = new Color(0.75f, 0.75f, 0.75f);
-
-    private void Start()
+    void Awake()
     {
-        gameObject.SetActive(false);
-
-        if (moveButton != null)
-            moveButton.onClick.AddListener(OnMoveButtonClicked);
-
-        if (removeButton != null)
-            removeButton.onClick.AddListener(OnRemoveButtonClicked);
-
-        if (rotateLeftButton != null)
-            rotateLeftButton.onClick.AddListener(() => currentTarget?.RotateLeft());
-
-        if (rotateRightButton != null)
-            rotateRightButton.onClick.AddListener(() => currentTarget?.RotateRight());
-
-        if (revertButton != null)
-            revertButton.onClick.AddListener(() => currentTarget?.Revert());
-
-        if (applyButton != null)
-            applyButton.onClick.AddListener(OnApplyButtonClicked);
-
-        UpdateMoveButtonVisual();
+        if (moveButton != null) moveButton.onClick.AddListener(OnMoveButtonClicked);
+        if (rotateLeftButton != null) rotateLeftButton.onClick.AddListener(() => RotateCurrent(-90f));
+        if (rotateRightButton != null) rotateRightButton.onClick.AddListener(() => RotateCurrent(90f));
+        if (applyButton != null) applyButton.onClick.AddListener(OnApplyClicked);
+        if (revertButton != null) revertButton.onClick.AddListener(OnRevertClicked);
+        if (removeButton != null) removeButton.onClick.AddListener(OnRemoveClicked);
     }
 
-    private void OnMoveButtonClicked()
+    // --- SHOW / HIDE PANEL ---
+    public void Show(SelectableItemController target)
     {
-        Debug.Log("[SelectableControllerUI] Move button clicked. Current target: " + (currentTarget ? currentTarget.name : "NONE"));
-
-        if (currentTarget == null)
+        if (target == null)
         {
-            Debug.LogWarning("[SelectableControllerUI] No target to toggle move for.");
+            Debug.LogWarning("[SelectableControllerUI] Show() called with null target.");
             return;
         }
 
-        // toggle local state, then instruct target
-        moveModeActive = !moveModeActive;
-        Debug.Log($"[SelectableControllerUI] Setting moveModeActive={moveModeActive} for {currentTarget.name}");
-
-        currentTarget.SetMoveActive(moveModeActive);
-
-        UpdateMoveButtonVisual();
-    }
-
-    private void OnRemoveButtonClicked()
-    {
-        Debug.Log("[SelectableControllerUI] Remove clicked for: " + (currentTarget ? currentTarget.name : "NONE"));
-        currentTarget?.Remove();
-        Hide();
-    }
-
-    private void OnApplyButtonClicked()
-    {
-        Debug.Log("[SelectableControllerUI] Apply clicked for: " + (currentTarget ? currentTarget.name : "NONE"));
-        currentTarget?.Apply();
-        Hide();
-    }
-
-    public void Show(SelectableItemController target)
-    {
         currentTarget = target;
-        moveModeActive = false;
-        UpdateMoveButtonVisual();
+        itemNameText.text = target.name;
         gameObject.SetActive(true);
 
-        Debug.Log("[SelectableControllerUI] Show() called. Target = " + (target ? target.name : "NONE"));
-        target?.Select();
+        Debug.Log($"[SelectableControllerUI] Show() called. Target = {target.name}");
     }
 
     public void Hide()
     {
-        if (currentTarget != null)
-        {
-            Debug.Log("[SelectableControllerUI] Hide() called. Deselecting: " + currentTarget.name);
-            currentTarget.Deselect();
-            currentTarget = null;
-        }
         moveModeActive = false;
         UpdateMoveButtonVisual();
+
+        if (cameraController != null && cameraController.dragPanel != null)
+        {
+            var img = cameraController.dragPanel.GetComponent<Image>();
+            if (img != null)
+                img.raycastTarget = true; // restore camera drag
+        }
+
+        currentTarget = null;
         gameObject.SetActive(false);
+    }
+
+    // --- MOVE BUTTON ---
+    private void OnMoveButtonClicked()
+    {
+        if (currentTarget == null)
+        {
+            Debug.LogWarning("[SelectableControllerUI] Move button clicked but no target selected!");
+            return;
+        }
+
+        moveModeActive = !moveModeActive;
+
+        Debug.Log($"[SelectableControllerUI] Move button clicked. Current target: {currentTarget.name}");
+        Debug.Log($"[SelectableControllerUI] Setting moveModeActive={moveModeActive} for {currentTarget.name}");
+
+        currentTarget.SetMoveActive(moveModeActive);
+        UpdateMoveButtonVisual();
+
+        // Dynamically disable camera drag panel raycast while in move mode
+        if (cameraController != null && cameraController.dragPanel != null)
+        {
+            var img = cameraController.dragPanel.GetComponent<Image>();
+            if (img != null)
+            {
+                img.raycastTarget = !moveModeActive;
+                Debug.Log($"[SelectableControllerUI] Camera drag panel raycastTarget={img.raycastTarget}");
+            }
+        }
     }
 
     public void SetMoveButtonActive(bool active)
@@ -110,13 +100,53 @@ public class SelectableControllerUI : MonoBehaviour
     {
         moveModeActive = false;
         UpdateMoveButtonVisual();
+
+        if (cameraController != null && cameraController.dragPanel != null)
+        {
+            var img = cameraController.dragPanel.GetComponent<Image>();
+            if (img != null)
+                img.raycastTarget = true;
+        }
     }
 
     private void UpdateMoveButtonVisual()
     {
         if (moveButton == null) return;
-        var img = moveButton.GetComponent<Image>();
-        if (img != null)
-            img.color = moveModeActive ? activeColor : normalColor;
+
+        var colors = moveButton.colors;
+        colors.normalColor = moveModeActive ? new Color(0.5f, 0.9f, 0.5f) : Color.white;
+        moveButton.colors = colors;
+    }
+
+    // --- ROTATION ---
+    private void RotateCurrent(float degrees)
+    {
+        if (currentTarget == null) return;
+
+        if (degrees > 0)
+            currentTarget.RotateRight();
+        else
+            currentTarget.RotateLeft();
+    }
+
+    // --- APPLY / REVERT / REMOVE ---
+    private void OnApplyClicked()
+    {
+        if (currentTarget == null) return;
+        currentTarget.Apply();
+        Hide();
+    }
+
+    private void OnRevertClicked()
+    {
+        if (currentTarget == null) return;
+        currentTarget.Revert();
+    }
+
+    private void OnRemoveClicked()
+    {
+        if (currentTarget == null) return;
+        currentTarget.Remove();
+        Hide();
     }
 }

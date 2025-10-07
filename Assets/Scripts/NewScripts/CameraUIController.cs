@@ -170,20 +170,35 @@ public class CameraUIController : MonoBehaviour, IDragHandler, IBeginDragHandler
             RectTransform rt = result.gameObject.GetComponent<RectTransform>();
             if (rt != null)
             {
-                // Allow certain UI panels (like camera drag panel)
-                if (uiClickThrough.Contains(rt))
+                // ✅ Allow camera drag panel and its children to be click-through
+                if (IsInClickThroughList(rt))
                     continue;
 
-                // Allow if it's the camera panel marked via CameraDragPanel
+                // ✅ Allow special marker flag (if you're using CameraDragPanel helper)
                 if (CameraDragPanel.IsPointerOverCameraPanel)
                     continue;
 
-                return true; // Block click
+                return true; // otherwise it's blocking
             }
         }
 
         return false;
     }
+
+    // helper
+    private bool IsInClickThroughList(RectTransform target)
+    {
+        foreach (var allowed in uiClickThrough)
+        {
+            if (target == allowed)
+                return true;
+
+            if (target.IsChildOf(allowed))
+                return true;
+        }
+        return false;
+    }
+
 
     // --- Camera Bounds ---
     private void ClampPosition()

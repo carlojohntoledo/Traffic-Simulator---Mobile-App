@@ -2,6 +2,8 @@ using UnityEngine;
 
 public static class InputBlocker
 {
-    public static bool IsModelDragging = false;
-    public static bool IsCameraDragging = false;
+    public static bool IsCameraDragging { get; set; }
+    public static bool IsModelDragging { get; set; }
+
+    public static bool AnyActive => IsCameraDragging || IsModelDragging;
 }

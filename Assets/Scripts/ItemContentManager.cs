@@ -18,7 +18,7 @@ public class ItemContentManager : MonoBehaviour
     [Header("References")]
     public GameObject itemPanelPrefab;   // assign prefab in inspector
     public Transform contentParent;      // assign Content panel
-    public ConfirmBuildPanel confirmBuildPanel; // optional, assign later
+    // public ConfirmBuildPanel confirmBuildPanel;
     public Transform spawnParent;        // optional parent for spawned 3D models
     public Camera mainCamera;            // reference to main camera
     public SelectableControllerUI selectableControllerUI; // assign selectable UI panel

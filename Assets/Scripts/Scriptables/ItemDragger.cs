@@ -1,130 +1,133 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.UI;
+using System.Collections.Generic;
 
 [RequireComponent(typeof(Collider))]
 public class ItemDragger : MonoBehaviour
 {
     [Header("Settings")]
-    public LayerMask groundLayer;
-    public float dragHeightOffset = 0.05f;
-    public Camera mainCam;
+    public float moveSpeed = 10f;            // smooth follow speed
+    public LayerMask groundLayer;            // layer for raycast placement
+
+    [Header("References (Auto-filled)")]
+    public Camera mainCamera;
+    public GraphicRaycaster uiRaycaster;
+    public EventSystem eventSystem;
 
     private bool isDragging = false;
-    private bool dragStartedOnObject = false;
+    private bool isMoveMode = false;
+    private float dragStartTime;
+    private PointerEventData pointerData;
+    private List<RaycastResult> raycastResults = new List<RaycastResult>();
 
-    private void Start()
+    void Awake()
     {
-        if (mainCam == null) mainCam = Camera.main;
-    }
+        // Auto-assign references
+        if (mainCamera == null)
+            mainCamera = Camera.main;
 
-    private void Update()
-    {
-        if (!isDragging) return;
+        if (eventSystem == null)
+            eventSystem = EventSystem.current;
 
-#if UNITY_EDITOR || UNITY_STANDALONE
-        HandleMouseDrag();
-#elif UNITY_ANDROID || UNITY_IOS
-        HandleTouchDrag();
-#endif
+        if (uiRaycaster == null)
+        {
+            Canvas canvas = FindObjectOfType<Canvas>();
+            if (canvas != null)
+                uiRaycaster = canvas.GetComponent<GraphicRaycaster>();
+        }
+
+        if (uiRaycaster == null)
+            Debug.LogWarning("[ItemDragger] No GraphicRaycaster found — UI click protection may fail!");
     }
 
     public void EnableDragging(bool enable)
     {
-        isDragging = enable;
-        dragStartedOnObject = false;
-        Debug.Log($"[ItemDragger] EnableDragging({enable}) on {gameObject.name}");
+        isMoveMode = enable;
+        if (!enable)
+        {
+            isDragging = false;
+            InputBlocker.IsModelDragging = false;
+        }
+
+        Debug.Log($"[ItemDragger] MoveMode={(enable ? "ON" : "OFF")} for {name}");
     }
 
-    private void HandleMouseDrag()
+    void Update()
     {
+        if (!isMoveMode) return;
+
+        // --- Click / Tap to Move ---
         if (Input.GetMouseButtonDown(0))
         {
-            bool overUI = EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
-            bool overCameraPanel = CameraDragPanel.IsPointerOverCameraPanel;
-
-            // Only ignore if it's over UI that is *not* the camera panel
-            if (overUI && !overCameraPanel)
+            if (IsPointerOverUI())
             {
-                Debug.Log("[ItemDragger] Clicked over UI (not camera panel) — ignoring.");
-                dragStartedOnObject = false;
+                Debug.Log($"[ItemDragger] Click ignored — pointer is over UI for {name}");
                 return;
             }
 
-            Ray ray = mainCam.ScreenPointToRay(Input.mousePosition);
-            if (Physics.Raycast(ray, out RaycastHit hit, 300f))
+            if (Physics.Raycast(mainCamera.ScreenPointToRay(Input.mousePosition), out RaycastHit hit, 1000f, groundLayer))
             {
-                Debug.Log($"[ItemDragger] Ray hit {hit.transform.name}");
-                if (hit.transform == transform || hit.transform.IsChildOf(transform))
-                {
-                    dragStartedOnObject = true;
-                    InputBlocker.IsModelDragging = true;
-                    Debug.Log($"[ItemDragger] Started dragging {gameObject.name}");
-                }
+                transform.position = hit.point;
+                Debug.Log($"[ItemDragger] Click Move to {hit.point}");
             }
+
+            dragStartTime = Time.time;
         }
 
-        if (Input.GetMouseButton(0) && dragStartedOnObject)
+        // --- Dragging Start ---
+        if (Input.GetMouseButton(0))
         {
-            Ray ray = mainCam.ScreenPointToRay(Input.mousePosition);
-            if (Physics.Raycast(ray, out RaycastHit hit, 300f, groundLayer))
+            if (IsPointerOverUI()) return;
+
+            if (!isDragging)
             {
-                transform.position = hit.point + Vector3.up * dragHeightOffset;
+                isDragging = true;
+                InputBlocker.IsModelDragging = true;
+                Debug.Log($"[ItemDragger] Drag started for {name}");
+            }
+
+            if (Physics.Raycast(mainCamera.ScreenPointToRay(Input.mousePosition), out RaycastHit hit, 1000f, groundLayer))
+            {
+                Vector3 target = hit.point;
+                transform.position = Vector3.Lerp(transform.position, target, Time.deltaTime * moveSpeed);
             }
         }
 
+        // --- Drag End ---
         if (Input.GetMouseButtonUp(0))
         {
-            if (dragStartedOnObject)
-                Debug.Log($"[ItemDragger] Stopped dragging {gameObject.name}");
-
-            dragStartedOnObject = false;
-            InputBlocker.IsModelDragging = false;
+            if (isDragging)
+            {
+                isDragging = false;
+                InputBlocker.IsModelDragging = false;
+                Debug.Log($"[ItemDragger] Drag ended for {name}");
+            }
         }
     }
 
-    private void HandleTouchDrag()
+    // --- Detect if pointer is over UI ---
+    private bool IsPointerOverUI()
     {
-        if (Input.touchCount == 0) return;
+        if (eventSystem == null)
+            return EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
 
-        Touch touch = Input.GetTouch(0);
-        bool overUI = EventSystem.current != null && EventSystem.current.IsPointerOverGameObject(touch.fingerId);
-        bool overCameraPanel = CameraDragPanel.IsPointerOverCameraPanel;
-
-        if (touch.phase == TouchPhase.Began)
+        if (uiRaycaster == null)
         {
-            if (overUI && !overCameraPanel)
-            {
-                Debug.Log("[ItemDragger] Touch over UI (not camera panel) — ignoring.");
-                dragStartedOnObject = false;
-                return;
-            }
-
-            Ray ray = mainCam.ScreenPointToRay(touch.position);
-            if (Physics.Raycast(ray, out RaycastHit hit, 300f))
-            {
-                if (hit.transform == transform || hit.transform.IsChildOf(transform))
-                {
-                    dragStartedOnObject = true;
-                    InputBlocker.IsModelDragging = true;
-                    Debug.Log($"[ItemDragger] Started touch dragging {gameObject.name}");
-                }
-            }
+            Canvas canvas = FindObjectOfType<Canvas>();
+            if (canvas != null)
+                uiRaycaster = canvas.GetComponent<GraphicRaycaster>();
         }
 
-        if (touch.phase == TouchPhase.Moved && dragStartedOnObject)
-        {
-            Ray ray = mainCam.ScreenPointToRay(touch.position);
-            if (Physics.Raycast(ray, out RaycastHit hit, 300f, groundLayer))
-            {
-                transform.position = hit.point + Vector3.up * dragHeightOffset;
-            }
-        }
+        if (uiRaycaster == null) return false;
 
-        if (touch.phase == TouchPhase.Ended || touch.phase == TouchPhase.Canceled)
+        pointerData = new PointerEventData(eventSystem)
         {
-            dragStartedOnObject = false;
-            InputBlocker.IsModelDragging = false;
-            Debug.Log($"[ItemDragger] Stopped touch dragging {gameObject.name}");
-        }
+            position = Input.mousePosition
+        };
+
+        raycastResults.Clear();
+        uiRaycaster.Raycast(pointerData, raycastResults);
+        return raycastResults.Count > 0;
     }
 }

@@ -15,7 +15,7 @@ GameObject:
   - component: {fileID: 289530558801260841}
   - component: {fileID: 5261768434277871625}
   - component: {fileID: 8011490228156142175}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Straight Road 2
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -71,6 +71,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   brightnessBoost: 2
+  highlightOpacity: 0.75
+  liftHeight: 0.1
+  liftSpeed: 4
+  useSharedMaterials: 0
 --- !u!114 &5569567806554901152
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -83,11 +87,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c22b36ec7087bf648841f8082b0ddeab, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  moveSpeed: 10
   groundLayer:
     serializedVersion: 2
     m_Bits: 64
-  dragHeightOffset: 0.05
-  mainCam: {fileID: 0}
+  mainCamera: {fileID: 0}
+  uiRaycaster: {fileID: 0}
+  eventSystem: {fileID: 0}
 --- !u!33 &289530558801260841
 MeshFilter:
   m_ObjectHideFlags: 0

@@ -1,98 +1,85 @@
 using UnityEngine;
+using System.Collections;
+using System.Reflection;
 
 [RequireComponent(typeof(Collider))]
 public class SelectableItemController : MonoBehaviour
 {
     [Header("Highlight Settings")]
-    [Range(0f, 2f)] public float brightnessBoost = 1.2f;
-    [Range(0f, 2f)] public float emissionIntensity = 0.5f;
-    [Range(0.05f, 1f)] public float highlightFadeSpeed = 0.2f;
+    [Range(1f, 2f)] public float brightnessBoost = 1.3f;
+    [Range(0f, 1f)] public float highlightOpacity = 0.7f;
+    [Tooltip("Y-axis lift when selected")]
+    public float liftHeight = 0.5f;
+    [Tooltip("Lift/Land speed for Y-axis transition")]
+    public float liftSpeed = 4f;
+
+    [Tooltip("When true, modifies shared materials (affects all instances). False = makes unique material copies.")]
+    public bool useSharedMaterials = false;
 
     private Renderer[] renderers;
     private Color[][] originalColors;
-    private Color[][] currentEmissionColors;
+    private int[] originalRenderModes;
+
     private bool isSelected = false;
     private bool isMoveMode = false;
+    private bool isLifting = false;
 
     private Vector3 lastAppliedPosition;
     private Quaternion lastAppliedRotation;
+    private Vector3 basePosition;
 
     private ItemDragger itemDragger;
 
     private void Awake()
     {
+        // Ensure ItemDragger exists
         itemDragger = GetComponent<ItemDragger>();
         if (itemDragger == null)
             itemDragger = gameObject.AddComponent<ItemDragger>();
 
         renderers = GetComponentsInChildren<Renderer>(true);
-        CacheOriginalColors();
+        CacheOriginalMaterialSettings();
 
+        basePosition = transform.position;
         lastAppliedPosition = transform.position;
         lastAppliedRotation = transform.rotation;
 
         itemDragger.EnableDragging(false);
     }
 
-    private void CacheOriginalColors()
+    private void CacheOriginalMaterialSettings()
     {
         if (renderers == null || renderers.Length == 0)
         {
             originalColors = new Color[0][];
-            currentEmissionColors = new Color[0][];
             return;
         }
 
         originalColors = new Color[renderers.Length][];
-        currentEmissionColors = new Color[renderers.Length][];
 
         for (int i = 0; i < renderers.Length; i++)
         {
-            Material[] mats = renderers[i].materials;
+            Material[] mats = useSharedMaterials ? renderers[i].sharedMaterials : renderers[i].materials;
             originalColors[i] = new Color[mats.Length];
-            currentEmissionColors[i] = new Color[mats.Length];
 
             for (int j = 0; j < mats.Length; j++)
             {
                 if (mats[j].HasProperty("_Color"))
                     originalColors[i][j] = mats[j].color;
-
-                if (mats[j].HasProperty("_EmissionColor"))
-                {
-                    mats[j].EnableKeyword("_EMISSION");
-                    currentEmissionColors[i][j] = mats[j].GetColor("_EmissionColor");
-                }
             }
         }
     }
 
-    private void Update()
-    {
-        // Smoothly blend emission for highlight fade
-        for (int i = 0; i < renderers.Length; i++)
-        {
-            Material[] mats = renderers[i].materials;
-            for (int j = 0; j < mats.Length; j++)
-            {
-                if (!mats[j].HasProperty("_EmissionColor")) continue;
-
-                Color target = isSelected ? originalColors[i][j] * emissionIntensity : Color.black;
-                Color current = mats[j].GetColor("_EmissionColor");
-                Color newColor = Color.Lerp(current, target, Time.deltaTime / highlightFadeSpeed);
-                mats[j].SetColor("_EmissionColor", newColor);
-            }
-        }
-    }
-
+    // --- Selection ---
     public void Select()
     {
-        // Deselect others
         var others = FindObjectsOfType<SelectableItemController>();
         foreach (var o in others)
             if (o != this) o.Deselect();
 
         isSelected = true;
         ApplyHighlight();
+        StartCoroutine(SmoothLift(basePosition + Vector3.up * liftHeight));
         Debug.Log("[SelectableItemController] Selected: " + name);
     }
 
@@ -101,7 +88,8 @@ public class SelectableItemController : MonoBehaviour
         if (!isSelected) return;
 
         isSelected = false;
-        RestoreOriginalColors();
+        RestoreOriginalMaterials();
+        StartCoroutine(SmoothLift(basePosition));
 
         isMoveMode = false;
         itemDragger.EnableDragging(false);
@@ -111,45 +99,62 @@ public class SelectableItemController : MonoBehaviour
         ui?.ResetMoveButtonVisual();
     }
 
+    // --- Highlight (brighten + transparency) ---
     private void ApplyHighlight()
     {
-        if (renderers == null) return;
-
         for (int i = 0; i < renderers.Length; i++)
         {
-            Material[] mats = renderers[i].materials;
+            Material[] mats = useSharedMaterials ? renderers[i].sharedMaterials : renderers[i].materials;
+
             for (int j = 0; j < mats.Length; j++)
             {
                 if (!mats[j].HasProperty("_Color")) continue;
 
+                Material mat = mats[j];
                 Color baseColor = originalColors[i][j];
-                mats[j].color = baseColor * brightnessBoost;
+                Color brighter = baseColor * brightnessBoost;
+                brighter.a = highlightOpacity;
 
-                // Enable emission highlight
-                if (mats[j].HasProperty("_EmissionColor"))
-                {
-                    mats[j].EnableKeyword("_EMISSION");
-                    mats[j].SetColor("_EmissionColor", baseColor * emissionIntensity);
-                }
+                SetMaterialRenderingMode(mat, RenderingMode.Transparent);
+                mat.color = brighter;
             }
         }
     }
 
-    private void RestoreOriginalColors()
+    private void RestoreOriginalMaterials()
     {
-        if (renderers == null || originalColors == null) return;
-
         for (int i = 0; i < renderers.Length; i++)
         {
-            Material[] mats = renderers[i].materials;
+            Material[] mats = useSharedMaterials ? renderers[i].sharedMaterials : renderers[i].materials;
+
             for (int j = 0; j < mats.Length; j++)
             {
-                if (mats[j].HasProperty("_Color"))
-                    mats[j].color = originalColors[i][j];
+                Material mat = mats[j];
+                if (mat.HasProperty("_Color"))
+                    mat.color = originalColors[i][j];
+
+                SetMaterialRenderingMode(mat, RenderingMode.Opaque);
             }
         }
     }
 
+    // --- Smooth Lift Animation ---
+    private IEnumerator SmoothLift(Vector3 targetPos)
+    {
+        if (isLifting) yield break;
+        isLifting = true;
+
+        while (Vector3.Distance(transform.position, targetPos) > 0.01f)
+        {
+            transform.position = Vector3.Lerp(transform.position, targetPos, Time.deltaTime * liftSpeed);
+            yield return null;
+        }
+
+        transform.position = targetPos;
+        isLifting = false;
+    }
+
+    // --- Move / UI logic ---
     public void SetMoveActive(bool enable)
     {
         if (enable && !isSelected)
@@ -162,7 +167,7 @@ public class SelectableItemController : MonoBehaviour
         if (itemDragger != null)
         {
             itemDragger.EnableDragging(enable);
-            Debug.Log($"[SelectableItemController] SetMoveActive({enable}) on {name}; ItemDragger enabled");
+            Debug.Log($"[SelectableItemController] SetMoveActive({enable}) on {name}");
         }
 
         var ui = FindObjectOfType<SelectableControllerUI>();
@@ -184,6 +189,7 @@ public class SelectableItemController : MonoBehaviour
     {
         lastAppliedPosition = transform.position;
         lastAppliedRotation = transform.rotation;
+        basePosition = transform.position; // Update base to new height
         Debug.Log("[SelectableItemController] Applied transform for " + name);
         Deselect();
     }
@@ -192,5 +198,38 @@ public class SelectableItemController : MonoBehaviour
     {
         Debug.Log("[SelectableItemController] Removed " + name);
         Destroy(gameObject);
+    }
+
+    // --- Utility for changing Standard shader mode ---
+    public enum RenderingMode { Opaque, Cutout, Fade, Transparent }
+
+    public static void SetMaterialRenderingMode(Material material, RenderingMode mode)
+    {
+        if (material == null) return;
+
+        switch (mode)
+        {
+            case RenderingMode.Opaque:
+                material.SetFloat("_Mode", 0);
+                material.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.One);
+                material.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.Zero);
+                material.SetInt("_ZWrite", 1);
+                material.DisableKeyword("_ALPHATEST_ON");
+                material.DisableKeyword("_ALPHABLEND_ON");
+                material.DisableKeyword("_ALPHAPREMULTIPLY_ON");
+                material.renderQueue = -1;
+                break;
+
+            case RenderingMode.Transparent:
+                material.SetFloat("_Mode", 3);
+                material.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                material.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                material.SetInt("_ZWrite", 0);
+                material.DisableKeyword("_ALPHATEST_ON");
+                material.DisableKeyword("_ALPHABLEND_ON");
+                material.EnableKeyword("_ALPHAPREMULTIPLY_ON");
+                material.renderQueue = 3000;
+                break;
+        }
     }
 }

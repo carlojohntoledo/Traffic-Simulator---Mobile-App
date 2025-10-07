@@ -16,7 +16,8 @@ MonoBehaviour:
   itemName: Straight Road
   description: 
   previewImage: {fileID: 0}
-  itemPrefab: {fileID: 182628, guid: b902c7d22d14fa843846ba35e963190b, type: 3}
+  itemPrefab: {fileID: 1627232098360109726, guid: e855c21985fccfb41a1bebf5907dfcd4,
+    type: 3}
   roadLength: 0
   spawnerType: 0
   maxSpawnCount: 0
