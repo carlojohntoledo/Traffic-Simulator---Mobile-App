@@ -147,9 +147,41 @@ public class CameraUIController : MonoBehaviour, IDragHandler, IBeginDragHandler
             if (Physics.Raycast(ray, out RaycastHit hit, Mathf.Infinity, clickableLayer))
             {
                 Debug.Log($"[CameraUIController] Raycast hit: {hit.collider.gameObject.name}");
+
+                // --- Forward click to ItemClickHandler ---
+                var clickHandler = hit.collider.GetComponentInParent<ItemClickHandler>();
+                if (clickHandler != null)
+                {
+                    Debug.Log($"[CameraUIController] Forwarding click to ItemClickHandler on {clickHandler.name}");
+                    clickHandler.SendMessage("OnMouseDown", SendMessageOptions.DontRequireReceiver);
+                    return;
+                }
+
+                // --- Fallback: Directly handle SelectableItemController ---
+                var selectable = hit.collider.GetComponentInParent<SelectableItemController>();
+                if (selectable != null)
+                {
+                    Debug.Log($"[CameraUIController] Direct select: {selectable.name}");
+                    selectable.Select();
+
+                    var ui = FindObjectOfType<SelectableControllerUI>();
+                    if (ui != null)
+                    {
+                        ui.Show(selectable);
+                        Debug.Log($"[CameraUIController] Showing SelectableControllerUI for {selectable.name}");
+                    }
+                    else
+                    {
+                        Debug.LogWarning("[CameraUIController] No SelectableControllerUI found in scene!");
+                    }
+                    return;
+                }
+
+                Debug.Log("[CameraUIController] Raycast hit object, but no clickable component found.");
             }
         }
     }
+
 
     // --- UI Blocking Logic ---
     private bool IsPointerOverBlockingUI()

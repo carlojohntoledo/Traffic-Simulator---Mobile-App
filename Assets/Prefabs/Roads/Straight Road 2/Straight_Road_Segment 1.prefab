@@ -9,17 +9,13 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 7016421152501413030}
-  - component: {fileID: 3170184649994438431}
-  - component: {fileID: 1457717763177520048}
-  - component: {fileID: 5569567806554901152}
   - component: {fileID: 289530558801260841}
   - component: {fileID: 5261768434277871625}
   - component: {fileID: 8011490228156142175}
-  - component: {fileID: 418212485499556944}
-  - component: {fileID: -9218297153302869924}
+  - component: {fileID: 6571799576944068008}
   m_Layer: 8
-  m_Name: Straight Road 2
-  m_TagString: SelectableItem
+  m_Name: Straight_Road_Segment 1
+  m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -38,67 +34,9 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 8289135764183248139}
-  - {fileID: 532083102773941845}
-  - {fileID: 4607445348359470291}
+  - {fileID: 7694325542374025111}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!65 &3170184649994438431
-BoxCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1627232098360109726}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 1
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 7.5, y: 4.21742, z: 5}
-  m_Center: {x: 0, y: 0, z: 0}
---- !u!114 &1457717763177520048
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1627232098360109726}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d0053c2c8c0227d49abfd90cd4d457c5, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  brightnessBoost: 2
-  highlightOpacity: 0.75
-  liftHeight: 0.1
-  liftSpeed: 4
-  useSharedMaterials: 0
---- !u!114 &5569567806554901152
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1627232098360109726}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c22b36ec7087bf648841f8082b0ddeab, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  moveSpeed: 10
-  groundLayer:
-    serializedVersion: 2
-    m_Bits: 64
-  mainCamera: {fileID: 0}
-  uiRaycaster: {fileID: 0}
-  eventSystem: {fileID: 0}
 --- !u!33 &289530558801260841
 MeshFilter:
   m_ObjectHideFlags: 0
@@ -114,7 +52,7 @@ MeshRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1627232098360109726}
-  m_Enabled: 0
+  m_Enabled: 1
   m_CastShadows: 1
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1
@@ -169,7 +107,7 @@ MonoBehaviour:
   destroyCombinedChildren: 0
   folderPath: Prefabs/CombinedMeshes
   meshFiltersToSkip: []
---- !u!114 &418212485499556944
+--- !u!114 &6571799576944068008
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -178,26 +116,40 @@ MonoBehaviour:
   m_GameObject: {fileID: 1627232098360109726}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7fc8f8387ddab914c9c76f19deca7c22, type: 3}
+  m_Script: {fileID: 11500000, guid: 092d5ba1f0bcd614ca4dd3cdaaa816e2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  data: {fileID: 0}
-  length: 0
-  roadSegmentPrefab: {fileID: 1627232098360109726, guid: 299a40bd8c1b99f438bcd3b2f3aa7555,
-    type: 3}
-  roadSegments: []
---- !u!114 &-9218297153302869924
-MonoBehaviour:
+--- !u!1 &4626018177925379174
+GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1627232098360109726}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2af55b0015e77cc4bba082b01f141c37, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 7694325542374025111}
+  m_Layer: 8
+  m_Name: Endpoint
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &7694325542374025111
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4626018177925379174}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 5}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 7016421152501413030}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &6652702927437064644
 GameObject:
   m_ObjectHideFlags: 0
@@ -229,65 +181,3 @@ Transform:
   m_Children: []
   m_Father: {fileID: 7016421152501413030}
   m_LocalEulerAnglesHint: {x: 0, y: 180, z: 0}
---- !u!1 &7542104568276372927
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 4607445348359470291}
-  m_Layer: 8
-  m_Name: SegmentsParent
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &4607445348359470291
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7542104568276372927}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 7016421152501413030}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &8051830166306611908
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 532083102773941845}
-  m_Layer: 8
-  m_Name: EndPoint
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &532083102773941845
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8051830166306611908}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 5}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 7016421152501413030}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}

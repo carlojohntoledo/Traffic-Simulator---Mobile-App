@@ -18,7 +18,6 @@ public class ItemContentManager : MonoBehaviour
     [Header("References")]
     public GameObject itemPanelPrefab;   // assign prefab in inspector
     public Transform contentParent;      // assign Content panel
-    // public ConfirmBuildPanel confirmBuildPanel;
     public Transform spawnParent;        // optional parent for spawned 3D models
     public Camera mainCamera;            // reference to main camera
     public SelectableControllerUI selectableControllerUI; // assign selectable UI panel
@@ -127,17 +126,29 @@ public class ItemContentManager : MonoBehaviour
 
         // Spawn 5 units in front of camera
         Vector3 spawnPos = mainCamera.transform.position + mainCamera.transform.forward * 5f;
-
         GameObject spawned = Instantiate(itemData.itemPrefab, spawnPos, Quaternion.identity, spawnParent);
 
-        // Add SelectableItemController if not present
+        // ✅ Assign ItemData using ApplyEditChanges instead of old Initialize
+        EditRoadItem editComp = spawned.GetComponentInChildren<EditRoadItem>();
+        if (editComp != null)
+        {
+            editComp.ApplyEditChanges(itemData);
+            Debug.Log($"[ItemContentManager] Assigned ItemData to EditRoadItem: {itemData.itemName}");
+        }
+        else
+        {
+            Debug.LogWarning($"[ItemContentManager] Spawned prefab '{spawned.name}' has no EditRoadItem component!");
+        }
+
+        // ✅ Ensure it has SelectableItemController
         SelectableItemController controller = spawned.GetComponent<SelectableItemController>();
         if (controller == null)
             controller = spawned.AddComponent<SelectableItemController>();
 
-        controller.Select(); // set selected mode
+        // Connect the spawned item's data to SelectableControllerUI
+        controller.Select();
 
-        // Show selectable UI
+        // ✅ Show selectable control panel
         if (selectableControllerUI != null)
         {
             selectableControllerUI.Show(controller);

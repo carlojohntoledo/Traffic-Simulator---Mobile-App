@@ -14,11 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   type: 0
   itemName: Straight Road
-  description: 
+  description: "This is a straight road piece with one lane going each way. You can
+    easily adjust its length to fit the layout you want. It\u2019s perfect for creating
+    simple two-way connections between intersections or extending your road network."
   previewImage: {fileID: 0}
   itemPrefab: {fileID: 1627232098360109726, guid: e855c21985fccfb41a1bebf5907dfcd4,
     type: 3}
-  roadLength: 0
+  roadLength: 4
   spawnerType: 0
   maxSpawnCount: 0
   spawnInterval: 0

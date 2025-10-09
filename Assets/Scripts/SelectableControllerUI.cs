@@ -15,14 +15,17 @@ public class SelectableControllerUI : MonoBehaviour
     public TMP_Text itemNameText;
 
     [Header("External References")]
-    public CameraUIController cameraController; // assign in inspector if possible
+    public CameraUIController cameraController; // Automatically found at runtime if not assigned
+    public ConfirmEditPanel confirmEditPanel;
 
     private SelectableItemController currentTarget;
     private bool moveModeActive = false;
 
-    private ConfirmEditPanel confirmEditPanel;
+    // These track what’s currently selected
+    private ItemData selectedItemData;
+    private GameObject selectedInstance;
 
-    void Awake()
+    private void Awake()
     {
         if (moveButton != null) moveButton.onClick.AddListener(OnMoveButtonClicked);
         if (rotateLeftButton != null) rotateLeftButton.onClick.AddListener(() => RotateCurrent(-90f));
@@ -33,10 +36,10 @@ public class SelectableControllerUI : MonoBehaviour
         if (editButton != null) editButton.onClick.AddListener(OnEditClicked);
     }
 
-    void Start()
+    private void Start()
     {
-        // Dynamically find ConfirmEditPanel (since prefabs can’t be pre-linked)
-        confirmEditPanel = FindObjectOfType<ConfirmEditPanel>(true);
+        if (confirmEditPanel == null)
+            confirmEditPanel = FindObjectOfType<ConfirmEditPanel>(true);
 
         if (cameraController == null)
             cameraController = FindObjectOfType<CameraUIController>();
@@ -53,8 +56,16 @@ public class SelectableControllerUI : MonoBehaviour
 
         currentTarget = target;
         itemNameText.text = target.name;
-        gameObject.SetActive(true);
+        selectedInstance = target.gameObject;
 
+        // Try to get the associated ItemData (if the target has one)
+        var editItem = selectedInstance.GetComponent<EditRoadItem>();
+        if (editItem != null)
+        {
+            selectedItemData = editItem.data;
+        }
+
+        gameObject.SetActive(true);
         Debug.Log($"[SelectableControllerUI] Show() called. Target = {target.name}");
     }
 
@@ -62,14 +73,16 @@ public class SelectableControllerUI : MonoBehaviour
     {
         moveModeActive = false;
         UpdateMoveButtonVisual();
-
         RestoreCameraDragRaycast();
 
         currentTarget = null;
+        selectedItemData = null;
+        selectedInstance = null;
+
         gameObject.SetActive(false);
     }
 
-    // --- MOVE BUTTON ---
+    // --- MOVE MODE ---
     private void OnMoveButtonClicked()
     {
         if (currentTarget == null)
@@ -79,15 +92,21 @@ public class SelectableControllerUI : MonoBehaviour
         }
 
         moveModeActive = !moveModeActive;
-
-        Debug.Log($"[SelectableControllerUI] Move button clicked. Current target: {currentTarget.name}");
-        Debug.Log($"[SelectableControllerUI] Setting moveModeActive={moveModeActive} for {currentTarget.name}");
+        Debug.Log($"[SelectableControllerUI] Move button clicked. MoveModeActive={moveModeActive} for {currentTarget.name}");
 
         currentTarget.SetMoveActive(moveModeActive);
         UpdateMoveButtonVisual();
-
-        // Manage drag panel raycast dynamically
         SetCameraDragRaycast(!moveModeActive);
+    }
+
+    private void UpdateMoveButtonVisual()
+    {
+        if (moveButton == null) return;
+
+        var colors = moveButton.colors;
+        colors.normalColor = moveModeActive ? new Color(0.6f, 1f, 0.6f) : Color.white;
+        colors.selectedColor = moveModeActive ? new Color(0.6f, 1f, 0.6f) : Color.white;
+        moveButton.colors = colors;
     }
 
     public void SetMoveButtonActive(bool active)
@@ -103,17 +122,8 @@ public class SelectableControllerUI : MonoBehaviour
         RestoreCameraDragRaycast();
     }
 
-    private void UpdateMoveButtonVisual()
-    {
-        if (moveButton == null) return;
+    private void RestoreCameraDragRaycast() => SetCameraDragRaycast(true);
 
-        var colors = moveButton.colors;
-        colors.normalColor = moveModeActive ? new Color(0.6f, 1f, 0.6f) : Color.white;
-        colors.selectedColor = moveModeActive ? new Color(0.6f, 1f, 0.6f) : Color.white;
-        moveButton.colors = colors;
-    }
-
-    // --- CAMERA RAYCAST MANAGEMENT ---
     private void SetCameraDragRaycast(bool enabled)
     {
         if (cameraController == null || cameraController.dragPanel == null)
@@ -126,8 +136,6 @@ public class SelectableControllerUI : MonoBehaviour
             Debug.Log($"[SelectableControllerUI] Camera drag panel raycastTarget={enabled}");
         }
     }
-
-    private void RestoreCameraDragRaycast() => SetCameraDragRaycast(true);
 
     // --- ROTATION ---
     private void RotateCurrent(float degrees)
@@ -164,7 +172,7 @@ public class SelectableControllerUI : MonoBehaviour
         Hide();
     }
 
-    // --- EDIT BUTTON ---
+    // --- EDIT ---
     private void OnEditClicked()
     {
         if (currentTarget == null)
@@ -183,15 +191,20 @@ public class SelectableControllerUI : MonoBehaviour
             }
         }
 
-        var buildItem = currentTarget.GetComponent<BuildItem>();
-        if (buildItem != null && buildItem.data != null)
+        GameObject targetObject = currentTarget.gameObject;
+        var editItem = targetObject.GetComponent<EditRoadItem>();
+
+        if (editItem != null && editItem.data != null)
         {
-            confirmEditPanel.Open(buildItem.data);
-            Debug.Log($"[SelectableControllerUI] Opened ConfirmEditPanel for {buildItem.data.itemName}");
+            selectedItemData = editItem.data;
+            selectedInstance = targetObject;
+
+            confirmEditPanel.Open(selectedItemData, selectedInstance);
+            Debug.Log($"[SelectableControllerUI] Opened ConfirmEditPanel for {selectedItemData.itemName}");
         }
         else
         {
-            Debug.LogWarning("[SelectableControllerUI] Current target has no BuildItem or data.");
+            Debug.LogWarning("[SelectableControllerUI] Current target missing EditRoadItem or ItemData reference!");
         }
     }
 }

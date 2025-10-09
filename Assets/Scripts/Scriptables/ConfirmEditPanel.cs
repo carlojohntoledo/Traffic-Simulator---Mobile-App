@@ -61,6 +61,7 @@ public class ConfirmEditPanel : MonoBehaviour
 
     private ItemData currentData;
     private ItemData originalCopy;
+    private GameObject currentInstance; // 👈 the currently selected prefab instance
 
     private void Awake()
     {
@@ -74,7 +75,7 @@ public class ConfirmEditPanel : MonoBehaviour
     }
 
     // --- OPEN PANEL ---
-    public void Open(ItemData data)
+    public void Open(ItemData data, GameObject instance)
     {
         if (data == null)
         {
@@ -83,8 +84,9 @@ public class ConfirmEditPanel : MonoBehaviour
         }
 
         currentData = data;
+        currentInstance = instance;
 
-        // Make backup copy for cancel
+        // Backup for cancel
         originalCopy = ScriptableObject.CreateInstance<ItemData>();
         JsonUtility.FromJsonOverwrite(JsonUtility.ToJson(data), originalCopy);
 
@@ -258,6 +260,17 @@ public class ConfirmEditPanel : MonoBehaviour
         }
 
         Debug.Log($"[ConfirmEditPanel] Confirmed edits for {currentData.itemName}");
+
+        // 🔧 Apply updated data instantly to the selected object
+        if (currentInstance != null)
+        {
+            EditRoadItem editRoad = currentInstance.GetComponent<EditRoadItem>();
+            if (editRoad != null)
+            {
+                editRoad.ApplyEditChanges(currentData);
+            }
+        }
+
         ClosePanel();
     }
 

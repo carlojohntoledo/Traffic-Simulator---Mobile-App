@@ -15,6 +15,9 @@ public class ItemDragger : MonoBehaviour
     public GraphicRaycaster uiRaycaster;
     public EventSystem eventSystem;
 
+    // ✅ Callback for notifying SelectableItemController
+    public System.Action OnDragEnd;
+
     private bool isDragging = false;
     private bool isMoveMode = false;
     private float dragStartTime;
@@ -44,6 +47,7 @@ public class ItemDragger : MonoBehaviour
     public void EnableDragging(bool enable)
     {
         isMoveMode = enable;
+
         if (!enable)
         {
             isDragging = false;
@@ -57,7 +61,7 @@ public class ItemDragger : MonoBehaviour
     {
         if (!isMoveMode) return;
 
-        // --- Click / Tap to Move ---
+        // --- Begin drag ---
         if (Input.GetMouseButtonDown(0))
         {
             if (IsPointerOverUI())
@@ -66,16 +70,10 @@ public class ItemDragger : MonoBehaviour
                 return;
             }
 
-            if (Physics.Raycast(mainCamera.ScreenPointToRay(Input.mousePosition), out RaycastHit hit, 1000f, groundLayer))
-            {
-                transform.position = hit.point;
-                Debug.Log($"[ItemDragger] Click Move to {hit.point}");
-            }
-
             dragStartTime = Time.time;
         }
 
-        // --- Dragging Start ---
+        // --- Dragging (while mouse held) ---
         if (Input.GetMouseButton(0))
         {
             if (IsPointerOverUI()) return;
@@ -102,6 +100,9 @@ public class ItemDragger : MonoBehaviour
                 isDragging = false;
                 InputBlocker.IsModelDragging = false;
                 Debug.Log($"[ItemDragger] Drag ended for {name}");
+
+                // ✅ Notify controller to update basePosition
+                OnDragEnd?.Invoke();
             }
         }
     }
