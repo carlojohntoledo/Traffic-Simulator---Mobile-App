@@ -5,26 +5,22 @@ using System.Collections;
 [DisallowMultipleComponent]
 public class SelectableItemController : MonoBehaviour
 {
-    [Header("Highlight Settings")]
-    [Range(1f, 2f)] public float brightnessBoost = 1.3f;
-    [Range(0f, 1f)] public float highlightOpacity = 0.7f;
+    [Header("Highlight")]
+    public float brightnessBoost = 1.3f;
+    public float highlightOpacity = 0.7f;
 
-    [Header("Lift Settings")]
-    [Tooltip("Y-axis lift when selected")]
+    [Header("Lift")]
     public float liftHeight = 0.5f;
-    [Tooltip("Lift/Land speed for Y-axis transition")]
     public float liftSpeed = 4f;
 
-    [Header("Material Settings")]
-    [Tooltip("True = uses shared materials (affects all instances). False = makes unique copies.")]
+    [Header("Material")]
     public bool useSharedMaterials = false;
 
-    // --- Cached references ---
     private Renderer[] renderers;
     private Color[][] originalColors;
     private ItemDragger itemDragger;
+    private EditRoadItem editRoad;
 
-    // --- State ---
     private bool isSelected;
     private bool isMoveMode;
     private bool isLifting;
@@ -35,47 +31,32 @@ public class SelectableItemController : MonoBehaviour
 
     private Coroutine liftRoutine;
 
-    // ====================================================================================================
-    // LIFECYCLE
-    // ====================================================================================================
     private void Awake()
     {
-        // Ensure we have ItemDragger
-        itemDragger = GetComponent<ItemDragger>();
-        if (itemDragger == null)
-            itemDragger = gameObject.AddComponent<ItemDragger>();
+        itemDragger = GetComponent<ItemDragger>() ?? gameObject.AddComponent<ItemDragger>();
+        editRoad = GetComponent<EditRoadItem>();
 
-        // Hook drag end event
         itemDragger.OnDragEnd = OnDragEnd;
 
-        // Cache renderers and original material settings
         renderers = GetComponentsInChildren<Renderer>(true);
         CacheOriginalMaterialSettings();
 
-        // Initialize transform tracking
         basePosition = transform.position;
         lastAppliedPosition = transform.position;
         lastAppliedRotation = transform.rotation;
 
-        // Disable move mode by default
         itemDragger.EnableDragging(false);
     }
 
-    // ====================================================================================================
-    // SELECTION LOGIC
-    // ====================================================================================================
+    // ================== Selection ==================
     public void Select()
     {
-        // Deselect others
         foreach (var o in FindObjectsOfType<SelectableItemController>())
             if (o != this) o.Deselect();
 
         isSelected = true;
         ApplyHighlight();
-
         StartLift(basePosition + Vector3.up * liftHeight);
-
-        Debug.Log($"[SelectableItemController] Selected: {name}");
     }
 
     public void Deselect()
@@ -85,25 +66,29 @@ public class SelectableItemController : MonoBehaviour
         isSelected = false;
         RestoreOriginalMaterials();
         StartLift(basePosition);
-
         SetMoveActive(false);
-        Debug.Log($"[SelectableItemController] Deselected: {name}");
 
-        // Reset UI
         FindObjectOfType<SelectableControllerUI>()?.ResetMoveButtonVisual();
     }
 
-    // ====================================================================================================
-    // DRAG / MOVE LOGIC
-    // ====================================================================================================
+    // ================== Drag / Snap ==================
     private void OnDragEnd()
     {
         StopLift();
 
+        // Update base/applied position
         basePosition = transform.position;
         lastAppliedPosition = transform.position;
 
-        Debug.Log($"[SelectableItemController] Base position updated after drag: {basePosition}");
+        // Auto-snap to other roots
+        foreach (var other in FindObjectsOfType<SelectableItemController>())
+        {
+            if (other == this) continue;
+            if (editRoad.TrySnapTo(other.GetComponent<EditRoadItem>()))
+                break;
+        }
+
+        Debug.Log($"[SelectableItemController] Drag ended for {name}");
     }
 
     public void SetMoveActive(bool enable)
@@ -116,24 +101,18 @@ public class SelectableItemController : MonoBehaviour
 
         isMoveMode = enable;
         itemDragger.EnableDragging(enable);
-
         FindObjectOfType<SelectableControllerUI>()?.SetMoveButtonActive(enable);
-        Debug.Log($"[SelectableItemController] Move mode {(enable ? "ENABLED" : "DISABLED")} for {name}");
     }
 
     public void ToggleMove() => SetMoveActive(!isMoveMode);
-
     public void RotateLeft() => transform.Rotate(Vector3.up, -90f, Space.World);
     public void RotateRight() => transform.Rotate(Vector3.up, 90f, Space.World);
 
-    // ====================================================================================================
-    // APPLY / REVERT / REMOVE
-    // ====================================================================================================
+    // ================== Apply / Revert / Remove ==================
     public void Revert()
     {
         transform.position = lastAppliedPosition;
         transform.rotation = lastAppliedRotation;
-        Debug.Log($"[SelectableItemController] Reverted {name}");
     }
 
     public void Apply()
@@ -141,19 +120,12 @@ public class SelectableItemController : MonoBehaviour
         lastAppliedPosition = transform.position;
         lastAppliedRotation = transform.rotation;
         basePosition = transform.position;
-        Debug.Log($"[SelectableItemController] Applied transform for {name}");
         Deselect();
     }
 
-    public void Remove()
-    {
-        Debug.Log($"[SelectableItemController] Removed {name}");
-        Destroy(gameObject);
-    }
+    public void Remove() => Destroy(gameObject);
 
-    // ====================================================================================================
-    // LIFT ANIMATION
-    // ====================================================================================================
+    // ================== Lift ==================
     private void StartLift(Vector3 targetPos)
     {
         StopLift();
@@ -173,20 +145,16 @@ public class SelectableItemController : MonoBehaviour
     private IEnumerator LiftRoutine(Vector3 targetPos)
     {
         isLifting = true;
-
         while (Vector3.Distance(transform.position, targetPos) > 0.01f)
         {
             transform.position = Vector3.Lerp(transform.position, targetPos, Time.deltaTime * liftSpeed);
             yield return null;
         }
-
         transform.position = targetPos;
         isLifting = false;
     }
 
-    // ====================================================================================================
-    // HIGHLIGHT LOGIC
-    // ====================================================================================================
+    // ================== Highlight ==================
     private void CacheOriginalMaterialSettings()
     {
         if (renderers == null || renderers.Length == 0)
@@ -200,7 +168,6 @@ public class SelectableItemController : MonoBehaviour
         {
             var mats = useSharedMaterials ? renderers[i].sharedMaterials : renderers[i].materials;
             originalColors[i] = new Color[mats.Length];
-
             for (int j = 0; j < mats.Length; j++)
                 if (mats[j].HasProperty("_Color"))
                     originalColors[i][j] = mats[j].color;
@@ -235,23 +202,16 @@ public class SelectableItemController : MonoBehaviour
             for (int j = 0; j < mats.Length; j++)
             {
                 var mat = mats[j];
-                if (mat.HasProperty("_Color"))
-                    mat.color = originalColors[i][j];
-
+                if (mat.HasProperty("_Color")) mat.color = originalColors[i][j];
                 SetMaterialRenderingMode(mat, RenderingMode.Opaque);
             }
         }
     }
 
-    // ====================================================================================================
-    // MATERIAL RENDER MODE UTILITY
-    // ====================================================================================================
     public enum RenderingMode { Opaque, Transparent }
-
     public static void SetMaterialRenderingMode(Material mat, RenderingMode mode)
     {
         if (mat == null) return;
-
         switch (mode)
         {
             case RenderingMode.Opaque:
@@ -264,7 +224,6 @@ public class SelectableItemController : MonoBehaviour
                 mat.DisableKeyword("_ALPHAPREMULTIPLY_ON");
                 mat.renderQueue = -1;
                 break;
-
             case RenderingMode.Transparent:
                 mat.SetFloat("_Mode", 3);
                 mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);

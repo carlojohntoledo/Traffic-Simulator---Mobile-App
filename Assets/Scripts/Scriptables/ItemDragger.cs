@@ -7,26 +7,29 @@ using System.Collections.Generic;
 public class ItemDragger : MonoBehaviour
 {
     [Header("Settings")]
-    public float moveSpeed = 10f;            // smooth follow speed
-    public LayerMask groundLayer;            // layer for raycast placement
+    public float moveSpeed = 10f;            // Smooth follow speed
+    public LayerMask groundLayer;            // Ground layer for raycast placement
 
     [Header("References (Auto-filled)")]
     public Camera mainCamera;
     public GraphicRaycaster uiRaycaster;
     public EventSystem eventSystem;
 
-    // ✅ Callback for notifying SelectableItemController
+    // ✅ Callback to notify SelectableItemController
     public System.Action OnDragEnd;
 
     private bool isDragging = false;
     private bool isMoveMode = false;
     private float dragStartTime;
+
+    private Vector3 dragOffset; // <--- key addition
+    private float dragHeight;   // optional vertical consistency
+
     private PointerEventData pointerData;
     private List<RaycastResult> raycastResults = new List<RaycastResult>();
 
     void Awake()
     {
-        // Auto-assign references
         if (mainCamera == null)
             mainCamera = Camera.main;
 
@@ -70,10 +73,17 @@ public class ItemDragger : MonoBehaviour
                 return;
             }
 
-            dragStartTime = Time.time;
+            if (Physics.Raycast(mainCamera.ScreenPointToRay(Input.mousePosition), out RaycastHit hit, 1000f, groundLayer))
+            {
+                // Record initial offset between object and hit point
+                dragOffset = transform.position - hit.point;
+                dragHeight = transform.position.y - hit.point.y;
+
+                dragStartTime = Time.time;
+            }
         }
 
-        // --- Dragging (while mouse held) ---
+        // --- Dragging ---
         if (Input.GetMouseButton(0))
         {
             if (IsPointerOverUI()) return;
@@ -87,7 +97,12 @@ public class ItemDragger : MonoBehaviour
 
             if (Physics.Raycast(mainCamera.ScreenPointToRay(Input.mousePosition), out RaycastHit hit, 1000f, groundLayer))
             {
-                Vector3 target = hit.point;
+                // Maintain offset from initial grab point
+                Vector3 target = hit.point + dragOffset;
+
+                // Optionally preserve height relative to ground
+                target.y = hit.point.y + dragHeight;
+
                 transform.position = Vector3.Lerp(transform.position, target, Time.deltaTime * moveSpeed);
             }
         }
@@ -101,7 +116,6 @@ public class ItemDragger : MonoBehaviour
                 InputBlocker.IsModelDragging = false;
                 Debug.Log($"[ItemDragger] Drag ended for {name}");
 
-                // ✅ Notify controller to update basePosition
                 OnDragEnd?.Invoke();
             }
         }

@@ -20,7 +20,7 @@ MonoBehaviour:
   previewImage: {fileID: 0}
   itemPrefab: {fileID: 1627232098360109726, guid: e855c21985fccfb41a1bebf5907dfcd4,
     type: 3}
-  roadLength: 4
+  roadLength: 5
   spawnerType: 0
   maxSpawnCount: 0
   spawnInterval: 0

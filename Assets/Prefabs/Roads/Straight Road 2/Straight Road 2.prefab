@@ -22,7 +22,7 @@ GameObject:
   m_TagString: SelectableItem
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
+  m_StaticEditorFlags: 2147483647
   m_IsActive: 1
 --- !u!4 &7016421152501413030
 Transform:
@@ -39,7 +39,6 @@ Transform:
   m_Children:
   - {fileID: 8289135764183248139}
   - {fileID: 532083102773941845}
-  - {fileID: 4607445348359470291}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!65 &3170184649994438431
@@ -186,6 +185,12 @@ MonoBehaviour:
   roadSegmentPrefab: {fileID: 1627232098360109726, guid: 299a40bd8c1b99f438bcd3b2f3aa7555,
     type: 3}
   roadSegments: []
+  StartPoint: {fileID: 8289135764183248139}
+  EndPoint: {fileID: 532083102773941845}
+  snapDistance: 1
+  snapLayer:
+    serializedVersion: 2
+    m_Bits: 256
 --- !u!114 &-9218297153302869924
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -212,7 +217,7 @@ GameObject:
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
+  m_StaticEditorFlags: 2147483647
   m_IsActive: 1
 --- !u!4 &8289135764183248139
 Transform:
@@ -229,37 +234,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 7016421152501413030}
   m_LocalEulerAnglesHint: {x: 0, y: 180, z: 0}
---- !u!1 &7542104568276372927
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 4607445348359470291}
-  m_Layer: 8
-  m_Name: SegmentsParent
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &4607445348359470291
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7542104568276372927}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 7016421152501413030}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &8051830166306611908
 GameObject:
   m_ObjectHideFlags: 0
@@ -274,7 +248,7 @@ GameObject:
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
+  m_StaticEditorFlags: 2147483647
   m_IsActive: 1
 --- !u!4 &532083102773941845
 Transform:
