@@ -14,8 +14,8 @@ public class EditRoadItem : MonoBehaviour
     public List<Transform> roadSegments = new List<Transform>();
 
     [Header("Snap Points")]
-    public Transform StartPoint;
-    public Transform EndPoint;
+    [Tooltip("Assign all snap points manually in the Inspector. Supports multiple directions.")]
+    public Transform[] snapPoints;
 
     [Header("Snap Settings")]
     public float snapDistance = 1.0f;
@@ -26,18 +26,6 @@ public class EditRoadItem : MonoBehaviour
     private void Awake()
     {
         rootCollider = GetComponent<BoxCollider>();
-
-        if (StartPoint == null)
-        {
-            StartPoint = new GameObject("StartPoint").transform;
-            StartPoint.SetParent(transform);
-        }
-
-        if (EndPoint == null)
-        {
-            EndPoint = new GameObject("EndPoint").transform;
-            EndPoint.SetParent(transform);
-        }
     }
 
     private void Start()
@@ -49,7 +37,11 @@ public class EditRoadItem : MonoBehaviour
     private void Update()
     {
         UpdateSnapPoints();
-        TrySnapToNearbyPrefab(); // ✅ continuous snapping like PrefabSnapHandler
+
+        // Only auto-snap when in move mode
+        var selectable = GetComponent<SelectableItemController>();
+        if (selectable != null && selectable.IsMoveModeActive())
+            TrySnapToNearbyPrefab();
     }
 
     // ============================================================
@@ -83,6 +75,7 @@ public class EditRoadItem : MonoBehaviour
 
     public void RebuildRoadSegments()
     {
+        // Clear old segments
         foreach (var seg in roadSegments)
             if (seg != null) Destroy(seg.gameObject);
 
@@ -94,11 +87,11 @@ public class EditRoadItem : MonoBehaviour
             return;
         }
 
-        float segmentLength = 5f; // adjust to your mesh length
+        float segmentLength = 10f; // base mesh length along X
         for (int i = 0; i < length; i++)
         {
             GameObject seg = Instantiate(roadSegmentPrefab, transform);
-            seg.transform.localPosition = new Vector3(0f, 0f, i * segmentLength);
+            seg.transform.localPosition = new Vector3(i * segmentLength, 0f, 0f);
             seg.transform.localRotation = Quaternion.identity;
             roadSegments.Add(seg.transform);
         }
@@ -108,7 +101,7 @@ public class EditRoadItem : MonoBehaviour
     }
 
     // ============================================================
-    // Collider & Snap Points
+    // Collider & Snap Points Update
     // ============================================================
 
     private void UpdateColliderToSegments()
@@ -130,85 +123,97 @@ public class EditRoadItem : MonoBehaviour
 
     public void UpdateSnapPoints()
     {
-        if (roadSegments.Count == 0) return;
+        if (roadSegments.Count == 0 || snapPoints == null || snapPoints.Length == 0)
+            return;
 
-        // Estimate segment length using first segment’s renderer
-        float segmentLength = 5f; // default fallback
+        float segmentLength = 10f;
         Renderer firstRenderer = roadSegments[0].GetComponentInChildren<Renderer>();
         if (firstRenderer != null)
-            segmentLength = firstRenderer.bounds.size.z;
+            segmentLength = firstRenderer.bounds.size.x;
 
-        // Position StartPoint slightly before first segment
-        Vector3 startPos = roadSegments[0].position - roadSegments[0].forward * (segmentLength * 0.5f);
-        StartPoint.position = startPos;
+        if (snapPoints.Length == 2)
+        {
+            Vector3 startPos = roadSegments[0].position - roadSegments[0].right * (segmentLength * 0.5f);
+            snapPoints[0].position = startPos;
 
-        // Position EndPoint slightly after last segment
-        Transform lastSeg = roadSegments[roadSegments.Count - 1];
-        Vector3 endPos = lastSeg.position + lastSeg.forward * (segmentLength * 0.5f);
-        EndPoint.position = endPos;
+            Transform lastSeg = roadSegments[roadSegments.Count - 1];
+            Vector3 endPos = lastSeg.position + lastSeg.right * (segmentLength * 0.5f);
+            snapPoints[1].position = endPos;
+        }
 
         UpdateColliderToSegments();
     }
 
-
     // ============================================================
-    // Continuous Snap (rebuilt PrefabSnapHandler logic)
+    // Continuous Snap (multi-point)
     // ============================================================
 
     private void TrySnapToNearbyPrefab()
     {
-        if (StartPoint == null || EndPoint == null) return;
+        if (snapPoints == null || snapPoints.Length == 0) return;
 
-        // Look for nearby colliders within snap distance
-        Collider[] hits = Physics.OverlapSphere(StartPoint.position, snapDistance, snapLayer);
-        foreach (var hit in hits)
+        foreach (Transform mySnap in snapPoints)
         {
-            if (hit.gameObject == gameObject) continue;
+            Collider[] hits = Physics.OverlapSphere(mySnap.position, snapDistance, snapLayer);
 
-            EditRoadItem other = hit.GetComponent<EditRoadItem>();
-            if (other == null || other == this) continue;
-
-            // Snap Start -> Other End
-            float dist = Vector3.Distance(StartPoint.position, other.EndPoint.position);
-            if (dist <= snapDistance)
+            foreach (Collider hit in hits)
             {
-                PerformSnap(other.EndPoint.position, StartPoint.position);
-                Debug.Log($"[EditRoadItem] Snapped {name} Start → {other.name} End");
-                return;
-            }
+                if (hit.gameObject == gameObject) continue;
 
-            // Snap End -> Other Start
-            dist = Vector3.Distance(EndPoint.position, other.StartPoint.position);
-            if (dist <= snapDistance)
-            {
-                PerformSnap(other.StartPoint.position, EndPoint.position);
-                Debug.Log($"[EditRoadItem] Snapped {name} End → {other.name} Start");
-                return;
+                EditRoadItem other = hit.GetComponent<EditRoadItem>();
+                if (other == null || other == this || other.snapPoints == null) continue;
+
+                var otherSelectable = other.GetComponent<SelectableItemController>();
+                if (otherSelectable != null && !otherSelectable.IsMoveModeActive())
+                {
+                    foreach (Transform otherSnap in other.snapPoints)
+                    {
+                        float dist = Vector3.Distance(mySnap.position, otherSnap.position);
+                        if (dist > snapDistance) continue;
+
+                        // ✅ Snap if the two snap points face opposite directions
+                        float dot = Vector3.Dot(mySnap.forward, -otherSnap.forward);
+                        if (dot > 0.9f)
+                        {
+                            PerformSnap(otherSnap.position, mySnap.position);
+                            Debug.Log($"[EditRoadItem] Snapped {name} ({mySnap.name}) → {other.name} ({otherSnap.name})");
+                            return;
+                        }
+                    }
+                }
             }
         }
     }
 
     // ============================================================
-    // Manual Snap (for SelectableItemController)
+    // Manual Snap (used by SelectableItemController)
     // ============================================================
 
-    public bool TrySnapTo(EditRoadItem other)
+    public bool TrySnapTo(EditRoadItem other, SelectableItemController movingController = null)
     {
-        if (other == null) return false;
+        if (snapPoints == null || other == null || other.snapPoints == null)
+            return false;
 
-        float distStartEnd = Vector3.Distance(StartPoint.position, other.EndPoint.position);
-        float distEndStart = Vector3.Distance(EndPoint.position, other.StartPoint.position);
+        // Prevent stationary object from moving
+        var thisController = GetComponent<SelectableItemController>();
+        if (movingController != null && movingController != thisController)
+            return false;
 
-        if (distStartEnd <= snapDistance)
+        foreach (Transform mySnap in snapPoints)
         {
-            PerformSnap(other.EndPoint.position, StartPoint.position);
-            return true;
-        }
-
-        if (distEndStart <= snapDistance)
-        {
-            PerformSnap(other.StartPoint.position, EndPoint.position);
-            return true;
+            foreach (Transform otherSnap in other.snapPoints)
+            {
+                float dist = Vector3.Distance(mySnap.position, otherSnap.position);
+                if (dist <= snapDistance)
+                {
+                    float dot = Vector3.Dot(mySnap.forward, -otherSnap.forward);
+                    if (dot > 0.9f)
+                    {
+                        PerformSnap(otherSnap.position, mySnap.position);
+                        return true;
+                    }
+                }
+            }
         }
 
         return false;
@@ -218,10 +223,6 @@ public class EditRoadItem : MonoBehaviour
     {
         Vector3 offset = targetPos - localSnapPos;
         transform.position += offset;
-
-        Vector3 dir = (EndPoint.position - StartPoint.position).normalized;
-        if (dir != Vector3.zero)
-            transform.rotation = Quaternion.LookRotation(dir);
 
         UpdateSnapPoints();
         UpdateColliderToSegments();
@@ -233,22 +234,32 @@ public class EditRoadItem : MonoBehaviour
 
     private void OnDrawGizmos()
     {
-        if (StartPoint != null)
-        {
-            Gizmos.color = Color.green;
-            Gizmos.DrawSphere(StartPoint.position, 0.1f);
-        }
+        if (snapPoints == null) return;
 
-        if (EndPoint != null)
+        foreach (Transform snap in snapPoints)
         {
-            Gizmos.color = Color.red;
-            Gizmos.DrawSphere(EndPoint.position, 0.1f);
+            if (snap == null) continue;
+
+            Gizmos.color = Color.cyan;
+            Gizmos.DrawSphere(snap.position, 0.1f);
+
+            Gizmos.color = Color.yellow;
+            Gizmos.DrawRay(snap.position, snap.forward * 0.5f);
         }
     }
 }
 
-public class SnapPointHolder : MonoBehaviour
+// ============================================================
+// 🔹 Helper Extension for Move Mode Check
+// ============================================================
+public static class SelectableExtensions
 {
-    public Transform Start;
-    public Transform End;
+    public static bool IsMoveModeActive(this SelectableItemController controller)
+    {
+        if (controller == null) return false;
+
+        // Use reflection-safe access since isMoveMode is private
+        var field = typeof(SelectableItemController).GetField("isMoveMode", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        return field != null && (bool)field.GetValue(controller);
+    }
 }

@@ -48,6 +48,15 @@ public class SelectableItemController : MonoBehaviour
         itemDragger.EnableDragging(false);
     }
 
+    private void Update()
+    {
+        // 🔒 Prevent any unintended movement if not in move mode
+        if (!isMoveMode && !isLifting && transform.position != basePosition)
+        {
+            transform.position = basePosition;
+        }
+    }
+
     // ================== Selection ==================
     public void Select()
     {
@@ -84,7 +93,7 @@ public class SelectableItemController : MonoBehaviour
         foreach (var other in FindObjectsOfType<SelectableItemController>())
         {
             if (other == this) continue;
-            if (editRoad.TrySnapTo(other.GetComponent<EditRoadItem>()))
+            if (editRoad.TrySnapTo(other.GetComponent<EditRoadItem>(), this))
                 break;
         }
 
