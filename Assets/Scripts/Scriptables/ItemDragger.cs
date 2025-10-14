@@ -5,9 +5,8 @@ using System.Collections;
 using System.Collections.Generic;
 
 /// <summary>
-/// ItemDragger: draggable root controller that tints child segment materials red while overlapping other "Road" objects,
-/// restores the original materials when there are no overlaps anymore, and rolls back to last valid placement if released while overlapping.
-/// Robust to runtime-instantiated/destroyed segments (safe null checks + refresh).
+/// ItemDragger with grid snapping: integrates with GridManager to snap items to grid cells.
+/// Handles overlap tinting, rollback on invalid placement, and marks grid occupancy.
 /// </summary>
 [RequireComponent(typeof(Collider))]
 [RequireComponent(typeof(Rigidbody))]
@@ -16,6 +15,8 @@ public class ItemDragger : MonoBehaviour
     [Header("Movement Settings")]
     public float moveSpeed = 10f;
     public LayerMask groundLayer;
+    public bool enableGridSnapping = true;
+    public GridManager gridManager;
 
     [Header("Overlap Visual")]
     public Color overlapColor = new Color(1f, 0.2f, 0.2f, 1f);
@@ -28,19 +29,20 @@ public class ItemDragger : MonoBehaviour
     [Tooltip("Duration in seconds for the smooth return to last valid position")]
     public float smoothReturnDuration = 0.18f;
 
-    // runtime
     private Camera mainCamera;
     private bool isDragging = false;
     private bool isMoveMode = false;
     private Vector3 dragOffset;
     private float dragHeight;
 
-    // dynamic renderer/material storage (child segments)
-    private List<Renderer> segmentRenderers = new List<Renderer>();
-    private List<Material[]> originalMaterials = new List<Material[]>(); // snapshots to restore
-    private bool isTintApplied = false;
+    // grid position cache
+    private Vector2Int lastGridCoord;
+    private bool hasGridPosition = false;
 
-    // overlapping tracking
+    // render/material tint management
+    private List<Renderer> segmentRenderers = new List<Renderer>();
+    private List<Material[]> originalMaterials = new List<Material[]>();
+    private bool isTintApplied = false;
     private HashSet<GameObject> overlappingRoadRoots = new HashSet<GameObject>();
 
     // UI / raycast helpers
@@ -49,12 +51,11 @@ public class ItemDragger : MonoBehaviour
     private PointerEventData pointerData;
     private List<RaycastResult> raycastResults = new List<RaycastResult>();
 
-    // last valid placement (non-overlapping) for rollback
+    // rollback cache
     private Vector3 lastValidPosition;
     private Quaternion lastValidRotation;
     private bool hasValidPlacement = false;
 
-    // public hook
     public System.Action OnDragEnd;
 
     // ---------------------------------------------------------------------
@@ -66,7 +67,7 @@ public class ItemDragger : MonoBehaviour
         var canvas = FindObjectOfType<Canvas>();
         if (canvas != null) uiRaycaster = canvas.GetComponent<GraphicRaycaster>();
 
-        // Ensure collider is trigger and rigidbody is kinematic (safe defaults)
+        // safe defaults
         var col = GetComponent<Collider>();
         if (col != null) col.isTrigger = true;
 
@@ -76,6 +77,10 @@ public class ItemDragger : MonoBehaviour
             rb.isKinematic = true;
             rb.useGravity = false;
         }
+
+        // auto find grid if not assigned
+        if (gridManager == null)
+            gridManager = FindObjectOfType<GridManager>();
     }
 
     void Start()
@@ -87,13 +92,12 @@ public class ItemDragger : MonoBehaviour
     {
         if (!isMoveMode) return;
 
-        // refresh occasionally to catch runtime-instantiated segments (do not overwrite originals while tinted)
         if (!isTintApplied && Time.frameCount % 20 == 0)
             RefreshRenderersAndCacheMaterials();
 
         HandleDraggingInput();
 
-        // while dragging, if not overlapping, record last valid transform
+        // track valid placement when not overlapping
         if (isDragging && overlappingRoadRoots.Count == 0)
         {
             lastValidPosition = transform.position;
@@ -105,7 +109,7 @@ public class ItemDragger : MonoBehaviour
     // ---------------------------------------------------------------------
     private void HandleDraggingInput()
     {
-        // Begin drag (pointer down)
+        // Begin drag
         if (Input.GetMouseButtonDown(0))
         {
             if (IsPointerOverUI()) return;
@@ -117,7 +121,7 @@ public class ItemDragger : MonoBehaviour
             }
         }
 
-        // While dragging (pointer held)
+        // Drag movement
         if (Input.GetMouseButton(0))
         {
             if (IsPointerOverUI()) return;
@@ -126,17 +130,26 @@ public class ItemDragger : MonoBehaviour
             {
                 isDragging = true;
                 InputBlocker.IsModelDragging = true;
+
+                // release any previously occupied grid if we start moving
+                if (hasGridPosition && gridManager != null)
+                    gridManager.SetTileOccupied(lastGridCoord, false);
             }
 
             if (Physics.Raycast(mainCamera.ScreenPointToRay(Input.mousePosition), out RaycastHit hit, 1000f, groundLayer))
             {
                 Vector3 target = hit.point + dragOffset;
                 target.y = hit.point.y + dragHeight;
+
+                // Apply grid snapping if available
+                if (enableGridSnapping && gridManager != null)
+                    target = gridManager.GetNearestGridPosition(target);
+
                 transform.position = Vector3.Lerp(transform.position, target, Time.deltaTime * moveSpeed);
             }
         }
 
-        // End drag
+        // Release
         if (Input.GetMouseButtonUp(0))
         {
             if (!isDragging) return;
@@ -144,31 +157,39 @@ public class ItemDragger : MonoBehaviour
             isDragging = false;
             InputBlocker.IsModelDragging = false;
 
-            // If released while overlapping and we have a saved valid placement, rollback
-            if (overlappingRoadRoots.Count > 0)
-            {
-                if (hasValidPlacement)
-                {
-                    Debug.Log($"[ItemDragger] Released while overlapping — reverting to last valid placement for '{name}'");
+            Vector2Int snappedCoord = Vector2Int.zero;
 
-                    if (useSmoothReturn)
-                        StartCoroutine(SmoothReturnToValidPosition());
-                    else
+            // handle grid occupancy
+            if (enableGridSnapping && gridManager != null)
+            {
+                snappedCoord = gridManager.GetGridCoordinate(transform.position);
+                bool occupied = gridManager.IsTileOccupied(snappedCoord);
+
+                if (occupied)
+                {
+                    // rollback to last valid
+                    if (hasValidPlacement)
                     {
-                        transform.position = lastValidPosition;
-                        transform.rotation = lastValidRotation;
+                        if (useSmoothReturn)
+                            StartCoroutine(SmoothReturnToValidPosition());
+                        else
+                            transform.position = lastValidPosition;
+
+                        Debug.Log($"[ItemDragger] Grid tile occupied, reverting placement.");
                     }
                 }
                 else
                 {
-                    Debug.Log($"[ItemDragger] Released while overlapping but no valid placement saved for '{name}'");
+                    gridManager.SetTileOccupied(snappedCoord, true);
+                    lastGridCoord = snappedCoord;
+                    hasGridPosition = true;
+                    Debug.Log($"[ItemDragger] Occupied tile set at {snappedCoord}");
                 }
             }
 
-            // clear overlaps and restore visuals
+            // restore visuals
             overlappingRoadRoots.Clear();
-            if (isTintApplied)
-                RestoreOriginalMaterials();
+            if (isTintApplied) RestoreOriginalMaterials();
             isTintApplied = false;
 
             OnDragEnd?.Invoke();
@@ -180,7 +201,6 @@ public class ItemDragger : MonoBehaviour
     {
         Vector3 startPos = transform.position;
         Quaternion startRot = transform.rotation;
-
         float t = 0f;
         while (t < 1f)
         {
@@ -189,12 +209,8 @@ public class ItemDragger : MonoBehaviour
             transform.rotation = Quaternion.Slerp(startRot, lastValidRotation, t);
             yield return null;
         }
-
-        transform.position = lastValidPosition;
-        transform.rotation = lastValidRotation;
     }
 
-    // ---------------------------------------------------------------------
     private bool IsPointerOverUI()
     {
         if (eventSystem == null)
@@ -216,248 +232,89 @@ public class ItemDragger : MonoBehaviour
     }
 
     // ---------------------------------------------------------------------
-    /// <summary>Finds child renderers and creates a snapshot of their current materials for restoration later.</summary>
     private void RefreshRenderersAndCacheMaterials()
     {
         Renderer[] found = GetComponentsInChildren<Renderer>(true);
-
         segmentRenderers.Clear();
         originalMaterials.Clear();
 
         foreach (var r in found)
         {
-            if (r == null) continue;
-            if (r.gameObject == this.gameObject) continue; // skip any renderer on root itself
+            if (r == null || r.gameObject == gameObject) continue;
             segmentRenderers.Add(r);
 
-            // ensure unique material instances
-            try
-            {
-                r.materials = r.materials;
-            }
-            catch { /* renderer might be destroyed mid-call; ignore */ }
-
-            // snapshot of current materials (create new material instances to keep texture/settings safe)
+            r.materials = r.materials;
             Material[] mats = r.materials;
             Material[] copies = new Material[mats.Length];
             for (int i = 0; i < mats.Length; i++)
-            {
                 copies[i] = mats[i] != null ? new Material(mats[i]) : null;
-            }
+
             originalMaterials.Add(copies);
         }
-
-        Debug.Log($"[ItemDragger] Refreshed renderers: found {segmentRenderers.Count} child renderers under '{name}'");
     }
 
     // ---------------------------------------------------------------------
     void OnTriggerEnter(Collider other)
     {
-        if (!isDragging) return;
-        if (other == null) return;
-        if (other.gameObject == this.gameObject) return;
+        if (!isDragging || other == null) return;
         if (other.gameObject.layer != LayerMask.NameToLayer("Road")) return;
-
         GameObject otherRoot = other.transform.root != null ? other.transform.root.gameObject : other.gameObject;
-        overlappingRoadsAddAndApply(otherRoot);
+        overlappingRoadRoots.Add(otherRoot);
+        ApplyTintToSegments();
     }
 
     void OnTriggerExit(Collider other)
     {
-        if (!isDragging) return;
-        if (other == null) return;
-        if (other.gameObject == this.gameObject) return;
+        if (!isDragging || other == null) return;
         if (other.gameObject.layer != LayerMask.NameToLayer("Road")) return;
 
         GameObject otherRoot = other.transform.root != null ? other.transform.root.gameObject : other.gameObject;
-        overlappingRoadsRemoveAndMaybeRestore(otherRoot);
-    }
-
-    // ---------------------------------------------------------------------
-    private void overlappingRoadsAddAndApply(GameObject otherRoot)
-    {
-        if (otherRoot == null) return;
-
-        overlappingRoadRoots.Add(otherRoot);
-        Debug.Log($"[ItemDragger] COLLISION START: '{name}' <-> '{otherRoot.name}'  (total overlaps = {overlappingRoadRoots.Count})");
-
-        // if we haven't applied tint yet, refresh renderers and snapshot originals first
-        if (!isTintApplied)
-        {
-            RefreshRenderersAndCacheMaterials();
-            StoreOriginalMaterialsSnapshot();
-        }
-
-        ApplyTintToSegments();
-    }
-
-    private void overlappingRoadsRemoveAndMaybeRestore(GameObject otherRoot)
-    {
-        if (otherRoot == null) return;
-
         overlappingRoadRoots.Remove(otherRoot);
-        Debug.Log($"[ItemDragger] COLLISION END: '{name}' <-> '{otherRoot.name}'  (remaining overlaps = {overlappingRoadRoots.Count})");
 
         if (overlappingRoadRoots.Count == 0)
-        {
-            // no more overlaps => restore originals
             RestoreOriginalMaterials();
-            isTintApplied = false;
-        }
     }
 
-    // ---------------------------------------------------------------------
-    private void StoreOriginalMaterialsSnapshot()
-    {
-        // Ensure renderers fresh
-        if (segmentRenderers.Count == 0)
-        {
-            originalMaterials.Clear();
-            return;
-        }
-
-        originalMaterials.Clear();
-        foreach (var r in segmentRenderers)
-        {
-            if (r == null)
-            {
-                originalMaterials.Add(new Material[0]);
-                continue;
-            }
-
-            Material[] mats = r.materials;
-            Material[] copies = new Material[mats.Length];
-            for (int i = 0; i < mats.Length; i++)
-            {
-                copies[i] = mats[i] != null ? new Material(mats[i]) : null;
-            }
-            originalMaterials.Add(copies);
-        }
-
-        Debug.Log($"[ItemDragger] Stored snapshot of original materials ({originalMaterials.Count} renderers).");
-    }
-
-    // ---------------------------------------------------------------------
     private void ApplyTintToSegments()
     {
-        if (segmentRenderers.Count == 0)
+        foreach (var r in segmentRenderers)
         {
-            Debug.LogWarning($"[ItemDragger] No child renderers found to tint on '{name}'");
-            return;
-        }
-
-        Debug.Log($"[ItemDragger] Applying tint to {segmentRenderers.Count} renderers on '{name}'");
-
-        for (int rIndex = 0; rIndex < segmentRenderers.Count; rIndex++)
-        {
-            Renderer r = segmentRenderers[rIndex];
             if (r == null) continue;
-
-            Material[] mats = r.materials;
-            for (int m = 0; m < mats.Length; m++)
+            foreach (var mat in r.materials)
             {
-                Material mat = mats[m];
                 if (mat == null) continue;
-
                 if (mat.HasProperty("_BaseColor"))
-                {
-                    Color current = mat.GetColor("_BaseColor");
-                    Color target = lerpTint ? Color.Lerp(current, overlapColor, tintLerpAmount) : overlapColor;
-                    mat.SetColor("_BaseColor", target);
-                }
+                    mat.SetColor("_BaseColor", Color.Lerp(mat.GetColor("_BaseColor"), overlapColor, tintLerpAmount));
                 else if (mat.HasProperty("_Color"))
-                {
-                    Color current = mat.GetColor("_Color");
-                    Color target = lerpTint ? Color.Lerp(current, overlapColor, tintLerpAmount) : overlapColor;
-                    mat.SetColor("_Color", target);
-                }
-                else
-                {
-                    // If shader doesn't expose common color props, skip — uncommon for Standard/URP.
-                }
+                    mat.SetColor("_Color", Color.Lerp(mat.GetColor("_Color"), overlapColor, tintLerpAmount));
             }
         }
-
         isTintApplied = true;
     }
 
-    // ---------------------------------------------------------------------
     private void RestoreOriginalMaterials()
     {
-        if (segmentRenderers.Count == 0 || originalMaterials.Count == 0)
+        for (int i = 0; i < segmentRenderers.Count; i++)
         {
-            return;
+            if (segmentRenderers[i] != null && i < originalMaterials.Count)
+                segmentRenderers[i].materials = originalMaterials[i];
         }
-
-        Debug.Log($"[ItemDragger] Restoring original materials for {segmentRenderers.Count} renderers on '{name}'");
-
-        int count = Mathf.Min(segmentRenderers.Count, originalMaterials.Count);
-        for (int i = 0; i < count; i++)
-        {
-            Renderer r = segmentRenderers[i];
-            Material[] originals = originalMaterials[i];
-
-            if (r == null || originals == null) continue;
-
-            try
-            {
-                Material[] current = r.materials;
-
-                if (originals.Length == current.Length)
-                {
-                    // direct assignment (restores textures + all properties)
-                    r.materials = originals;
-                }
-                else
-                {
-                    // fallback: restore color properties where possible
-                    int loop = Mathf.Min(current.Length, originals.Length);
-                    for (int m = 0; m < loop; m++)
-                    {
-                        if (originals[m] == null) continue;
-                        Material matInstance = current[m];
-                        if (matInstance == null) continue;
-
-                        if (matInstance.HasProperty("_BaseColor") && originals[m].HasProperty("_BaseColor"))
-                        {
-                            matInstance.SetColor("_BaseColor", originals[m].GetColor("_BaseColor"));
-                        }
-                        else if (matInstance.HasProperty("_Color") && originals[m].HasProperty("_Color"))
-                        {
-                            matInstance.SetColor("_Color", originals[m].GetColor("_Color"));
-                        }
-                    }
-                }
-            }
-            catch (System.Exception ex)
-            {
-                Debug.LogWarning($"[ItemDragger] Exception while restoring materials for renderer '{r?.name}': {ex.Message}");
-            }
-        }
-
-        // free snapshot
-        originalMaterials.Clear();
         isTintApplied = false;
     }
 
     // ---------------------------------------------------------------------
-    // Compatibility helper
     public void EnableDraggingExternally(bool enable) => EnableDragging(enable);
-
     public void EnableDragging(bool enable)
     {
         isMoveMode = enable;
-
         if (!enable)
         {
-            // stop drag and restore if necessary
             isDragging = false;
             InputBlocker.IsModelDragging = false;
             overlappingRoadRoots.Clear();
             if (isTintApplied) RestoreOriginalMaterials();
             isTintApplied = false;
         }
-
         Debug.Log($"[ItemDragger] MoveMode={(enable ? "ON" : "OFF")} for {name}");
     }
 }

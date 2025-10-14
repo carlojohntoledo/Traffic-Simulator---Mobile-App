@@ -16,14 +16,19 @@ MonoBehaviour:
   itemName: Vehicle Spawner
   description: 
   previewImage: {fileID: 0}
+  itemPrefab: {fileID: 2736761681562017104, guid: 4053c6e1742c3034889af296d551a880,
+    type: 3}
   roadLength: 0
   spawnerType: 0
   maxSpawnCount: 0
   spawnInterval: 0
   pedestrianDefaultSpeed: 0
-  ruleType: 0
-  stopAtRedLight: 1
-  allowOvertaking: 0
-  speedLimit: 50
+  trafficRuleType: 0
+  signPriority: 1
+  stopTime: 5
+  slowdownTime: 2
+  goTime: 5
+  hazardMode: 0
+  flashingMode: 0
   vehicleType: 0
   vehicleDefaultSpeed: 0

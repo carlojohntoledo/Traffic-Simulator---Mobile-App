@@ -1,0 +1,39 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 66e4065c92c843e4c93754d0db2a0c84, type: 3}
+  m_Name: NewItemData
+  m_EditorClassIdentifier: 
+  itemName: Straight Road
+  itemModelType: 0
+  itemImagePreview: {fileID: 0}
+  itemModelPrefab: {fileID: 7584153624589797804, guid: 9ad90ddfb722ca8449467d3da18a482c,
+    type: 3}
+  itemDescription: This is a Straight Road
+  roadType: 0
+  roadLength: 1
+  carType: 0
+  vehicleSpeed: 0
+  vehicleMaxSpeed: 0
+  vehicleMinSpeed: 0
+  pedestrianType: 0
+  pedestrianSpeed: 0
+  spawnType: 0
+  maxSpawn: 0
+  spawnInterval: 0
+  spawnModelPrefabs: []
+  spawnMode: 0
+  rulePriority: 0
+  startLight: 0
+  goTime: 0
+  slowTime: 0
+  stopTime: 0
+  hazardMode: 0

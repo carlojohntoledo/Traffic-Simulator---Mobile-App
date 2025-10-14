@@ -74,7 +74,10 @@ public class ConfirmEditPanel : MonoBehaviour
         panelRoot.SetActive(false);
     }
 
-    // --- OPEN PANEL ---
+    // ============================================================
+    // OPEN PANEL
+    // ============================================================
+
     public void Open(ItemData data, GameObject instance)
     {
         if (data == null)
@@ -195,7 +198,10 @@ public class ConfirmEditPanel : MonoBehaviour
         }
     }
 
-    // --- CANCEL / CONFIRM ---
+    // ============================================================
+    // CANCEL / CONFIRM
+    // ============================================================
+
     private void CancelEdit()
     {
         if (currentData != null && originalCopy != null)
@@ -222,19 +228,19 @@ public class ConfirmEditPanel : MonoBehaviour
 
             case ItemType.Spawner:
                 if (float.TryParse(spawnIntervalInput.text, out float si))
-                    currentData.spawnInterval = Clamp(si, 1f, 50f);
+                    currentData.spawnInterval = Clamp(si, 0.1f, 50f);
                 if (int.TryParse(maxSpawnCountInput.text, out int maxS))
-                    currentData.maxSpawnCount = Mathf.Clamp(maxS, 1, 50);
+                    currentData.maxSpawnCount = Mathf.Clamp(maxS, 1, 100);
 
                 if (currentData.spawnerType == SpawnerType.Car)
                 {
                     if (float.TryParse(vehicleSpeedInput.text, out float vs))
-                        currentData.vehicleDefaultSpeed = Clamp(vs, 1f, 50f);
+                        currentData.vehicleDefaultSpeed = Clamp(vs, 1f, 100f);
                 }
                 else if (currentData.spawnerType == SpawnerType.Pedestrian)
                 {
                     if (float.TryParse(pedestrianSpeedInput.text, out float ps))
-                        currentData.pedestrianDefaultSpeed = Clamp(ps, 1f, 10f);
+                        currentData.pedestrianDefaultSpeed = Clamp(ps, 0.1f, 10f);
                 }
                 break;
 
@@ -261,13 +267,27 @@ public class ConfirmEditPanel : MonoBehaviour
 
         Debug.Log($"[ConfirmEditPanel] Confirmed edits for {currentData.itemName}");
 
-        // 🔧 Apply updated data instantly to the selected object
+        // ✅ Apply updated data instantly to the selected object
         if (currentInstance != null)
         {
+            // For Road
             EditRoadItem editRoad = currentInstance.GetComponent<EditRoadItem>();
             if (editRoad != null)
             {
                 editRoad.ApplyEditChanges(currentData);
+                ClosePanel();
+                return;
+            }
+
+            // ✅ For Spawner
+            EditSpawnerItem editSpawner = currentInstance.GetComponent<EditSpawnerItem>();
+            if (editSpawner != null)
+            {
+                editSpawner.ApplyToSpawner();   // Apply runtime values
+                editSpawner.SaveBackToData();   // Save to ItemData
+                ClosePanel();
+                Debug.Log($"[ConfirmEditPanel] Applied Spawner edits → Interval={currentData.spawnInterval}, Max={currentData.maxSpawnCount}");
+                return;
             }
         }
 

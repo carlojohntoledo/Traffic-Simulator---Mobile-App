@@ -18,20 +18,12 @@ public class CameraUIController : MonoBehaviour, IDragHandler, IBeginDragHandler
     public float pinchZoomSpeed = 0.1f;
 
     [Header("Layers")]
-    public LayerMask clickableLayer; // Assign your interactable layer
-
-    [Header("UI Blocking Settings")]
-    public GraphicRaycaster uiRaycaster;
-    public EventSystem eventSystem;
-    public List<RectTransform> uiClickThrough = new List<RectTransform>();
+    public LayerMask clickableLayer;
 
     private bool dragging = false;
     private Vector2 lastPos;
     private Vector2 minBounds;
     private Vector2 maxBounds;
-
-    private PointerEventData pointerData;
-    private List<RaycastResult> raycastResults = new List<RaycastResult>();
 
     void Awake()
     {
@@ -40,7 +32,6 @@ public class CameraUIController : MonoBehaviour, IDragHandler, IBeginDragHandler
 
     void Start()
     {
-        // Zoom slider setup
         if (zoomSlider != null)
         {
             zoomSlider.minValue = minZoom;
@@ -67,27 +58,17 @@ public class CameraUIController : MonoBehaviour, IDragHandler, IBeginDragHandler
     // --- Camera Dragging ---
     public void OnBeginDrag(PointerEventData eventData)
     {
-        if (InputBlocker.IsModelDragging)
-        {
-            Debug.Log("[CameraUIController] Skipping camera drag — model is being dragged.");
-            return;
-        }
-
-        if (IsPointerOverBlockingUI())
-        {
-            Debug.Log("[CameraUIController] Drag blocked by UI.");
-            return;
-        }
+        if (InputManager.Instance.IsModelDragging) return;
+        if (InputManager.Instance.IsPointerOverUI()) return;
 
         dragging = true;
-        InputBlocker.IsCameraDragging = true;
+        InputManager.Instance.SetCameraDragging(true);
         lastPos = eventData.position;
     }
 
     public void OnDrag(PointerEventData eventData)
     {
-        if (!dragging || InputBlocker.IsModelDragging)
-            return;
+        if (!dragging || InputManager.Instance.IsModelDragging) return;
 
         Vector2 delta = eventData.position - lastPos;
         Vector3 move = new Vector3(-delta.x, 0, -delta.y) * dragSpeed * Time.deltaTime;
@@ -98,7 +79,7 @@ public class CameraUIController : MonoBehaviour, IDragHandler, IBeginDragHandler
     public void OnEndDrag(PointerEventData eventData)
     {
         dragging = false;
-        InputBlocker.IsCameraDragging = false;
+        InputManager.Instance.SetCameraDragging(false);
     }
 
     // --- Zoom ---
@@ -109,24 +90,24 @@ public class CameraUIController : MonoBehaviour, IDragHandler, IBeginDragHandler
 
     private void HandlePinchZoom()
     {
-        if (Input.touchCount == 2)
-        {
-            Touch touch0 = Input.GetTouch(0);
-            Touch touch1 = Input.GetTouch(1);
+        if (Input.touchCount != 2) return;
 
-            Vector2 prevPos0 = touch0.position - touch0.deltaPosition;
-            Vector2 prevPos1 = touch1.position - touch1.deltaPosition;
+        Touch t0 = Input.GetTouch(0);
+        Touch t1 = Input.GetTouch(1);
 
-            float prevMag = (prevPos0 - prevPos1).magnitude;
-            float currentMag = (touch0.position - touch1.position).magnitude;
-            float diff = currentMag - prevMag;
+        Vector2 prev0 = t0.position - t0.deltaPosition;
+        Vector2 prev1 = t1.position - t1.deltaPosition;
 
-            float newZoom = cam.orthographicSize - diff * pinchZoomSpeed;
-            cam.orthographicSize = Mathf.Clamp(newZoom, minZoom, maxZoom);
+        float prevMag = (prev0 - prev1).magnitude;
+        float currMag = (t0.position - t1.position).magnitude;
 
-            if (zoomSlider != null)
-                zoomSlider.value = cam.orthographicSize;
-        }
+        float diff = currMag - prevMag;
+        float newZoom = cam.orthographicSize - diff * pinchZoomSpeed;
+
+        cam.orthographicSize = Mathf.Clamp(newZoom, minZoom, maxZoom);
+
+        if (zoomSlider != null)
+            zoomSlider.value = cam.orthographicSize;
     }
 
     // --- World Click Detection ---
@@ -134,103 +115,31 @@ public class CameraUIController : MonoBehaviour, IDragHandler, IBeginDragHandler
     {
         if (Input.GetMouseButtonDown(0))
         {
-            if (InputBlocker.IsModelDragging)
-                return;
-
-            if (IsPointerOverBlockingUI())
-            {
-                Debug.Log("[CameraUIController] Click blocked by UI.");
-                return;
-            }
+            if (InputManager.Instance.AnyActive) return;
+            if (InputManager.Instance.IsPointerOverUI()) return;
 
             Ray ray = cam.ScreenPointToRay(Input.mousePosition);
             if (Physics.Raycast(ray, out RaycastHit hit, Mathf.Infinity, clickableLayer))
             {
-                Debug.Log($"[CameraUIController] Raycast hit: {hit.collider.gameObject.name}");
-
-                // --- Forward click to ItemClickHandler ---
-                var clickHandler = hit.collider.GetComponentInParent<ItemClickHandler>();
-                if (clickHandler != null)
+                var handler = hit.collider.GetComponentInParent<ItemClickHandler>();
+                if (handler != null)
                 {
-                    Debug.Log($"[CameraUIController] Forwarding click to ItemClickHandler on {clickHandler.name}");
-                    clickHandler.SendMessage("OnMouseDown", SendMessageOptions.DontRequireReceiver);
+                    handler.SendMessage("OnMouseDown", SendMessageOptions.DontRequireReceiver);
                     return;
                 }
 
-                // --- Fallback: Directly handle SelectableItemController ---
                 var selectable = hit.collider.GetComponentInParent<SelectableItemController>();
                 if (selectable != null)
                 {
-                    Debug.Log($"[CameraUIController] Direct select: {selectable.name}");
                     selectable.Select();
 
                     var ui = FindObjectOfType<SelectableControllerUI>();
                     if (ui != null)
-                    {
                         ui.Show(selectable);
-                        Debug.Log($"[CameraUIController] Showing SelectableControllerUI for {selectable.name}");
-                    }
-                    else
-                    {
-                        Debug.LogWarning("[CameraUIController] No SelectableControllerUI found in scene!");
-                    }
-                    return;
                 }
-
-                Debug.Log("[CameraUIController] Raycast hit object, but no clickable component found.");
             }
         }
     }
-
-
-    // --- UI Blocking Logic ---
-    private bool IsPointerOverBlockingUI()
-    {
-        if (eventSystem == null || uiRaycaster == null)
-            return false;
-
-        pointerData = new PointerEventData(eventSystem)
-        {
-            position = Input.mousePosition
-        };
-
-        raycastResults.Clear();
-        uiRaycaster.Raycast(pointerData, raycastResults);
-
-        foreach (var result in raycastResults)
-        {
-            RectTransform rt = result.gameObject.GetComponent<RectTransform>();
-            if (rt != null)
-            {
-                // ✅ Allow camera drag panel and its children to be click-through
-                if (IsInClickThroughList(rt))
-                    continue;
-
-                // ✅ Allow special marker flag (if you're using CameraDragPanel helper)
-                if (CameraDragPanel.IsPointerOverCameraPanel)
-                    continue;
-
-                return true; // otherwise it's blocking
-            }
-        }
-
-        return false;
-    }
-
-    // helper
-    private bool IsInClickThroughList(RectTransform target)
-    {
-        foreach (var allowed in uiClickThrough)
-        {
-            if (target == allowed)
-                return true;
-
-            if (target.IsChildOf(allowed))
-                return true;
-        }
-        return false;
-    }
-
 
     // --- Camera Bounds ---
     private void ClampPosition()
@@ -251,16 +160,6 @@ public class CameraUIController : MonoBehaviour, IDragHandler, IBeginDragHandler
             Bounds b = rend.bounds;
             minBounds = new Vector2(b.min.x, b.min.z);
             maxBounds = new Vector2(b.max.x, b.max.z);
-            return;
-        }
-
-        Terrain terrain = ground.GetComponent<Terrain>();
-        if (terrain != null)
-        {
-            Vector3 size = terrain.terrainData.size;
-            Vector3 pos = terrain.GetPosition();
-            minBounds = new Vector2(pos.x, pos.z);
-            maxBounds = new Vector2(pos.x + size.x, pos.z + size.z);
         }
     }
 }

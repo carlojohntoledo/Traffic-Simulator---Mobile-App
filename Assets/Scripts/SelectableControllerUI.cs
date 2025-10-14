@@ -173,6 +173,7 @@ public class SelectableControllerUI : MonoBehaviour
     }
 
     // --- EDIT ---
+    // --- EDIT ---
     private void OnEditClicked()
     {
         if (currentTarget == null)
@@ -192,19 +193,30 @@ public class SelectableControllerUI : MonoBehaviour
         }
 
         GameObject targetObject = currentTarget.gameObject;
-        var editItem = targetObject.GetComponent<EditRoadItem>();
+        selectedInstance = targetObject;
 
-        if (editItem != null && editItem.data != null)
+        // --- Try Road Items ---
+        var editRoad = targetObject.GetComponent<EditRoadItem>();
+        if (editRoad != null && editRoad.data != null)
         {
-            selectedItemData = editItem.data;
-            selectedInstance = targetObject;
-
+            selectedItemData = editRoad.data;
             confirmEditPanel.Open(selectedItemData, selectedInstance);
-            Debug.Log($"[SelectableControllerUI] Opened ConfirmEditPanel for {selectedItemData.itemName}");
+            Debug.Log($"[SelectableControllerUI] Opened ConfirmEditPanel for Road Item: {selectedItemData.itemName}");
+            return;
         }
-        else
+
+        // --- Try Spawner Items ---
+        var editSpawner = targetObject.GetComponent<EditSpawnerItem>();
+        if (editSpawner != null && editSpawner.data != null)
         {
-            Debug.LogWarning("[SelectableControllerUI] Current target missing EditRoadItem or ItemData reference!");
+            selectedItemData = editSpawner.data;
+            confirmEditPanel.Open(selectedItemData, selectedInstance);
+            Debug.Log($"[SelectableControllerUI] Opened ConfirmEditPanel for Spawner Item: {selectedItemData.itemName}");
+            return;
         }
+
+        // --- Add future support here for Rules, Pedestrians, etc. ---
+        Debug.LogWarning("[SelectableControllerUI] Current target missing Edit component or ItemData reference!");
     }
+
 }
